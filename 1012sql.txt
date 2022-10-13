@@ -1,0 +1,147 @@
+1.Join
+=>2개 이상의 테이블을 이용해서 작업을 수행하고자 할 때 사용하는 기술
+1) Join의 종류
+=> cross join (Cartesian Product, 교차곱) : 2개 테이블의 모둔 조합
+=> equi join : 동일한 의미를 갖는 2개의 컬럼의 값이 같은 경우만 조합
+=> Non Equi join : 동일한 의미를 갖는 2개의 컬럼의 값이 일치하는 경우가 아닌 형태의 조합
+=> outer join : 한꼭에만 존재하는 데이터도 참여하는 조인
+양쪽 모두에 존재하는 데이터만 조인에 참여가는 것을 inner join
+equi join과 inner join이 같은 의미로 많이 사용되므로 별도로 설명하지는 않음
+=> self join : 하나의 테이블을 가지고 조인
+=> semi join : sub query를 가지고 조인
+
+2)Join을 할때 확인사항 
+=>테이블에서 동일한 의미를 갖는 컬럼 찾아야 함
+컬럼의 자료형만 일치하면 됨
+
+3)cross join
+=>cartesian product라고도 하는데 from절에 2개의 테이블 이름이 join 조건 없이 기재된 경우로 2개 테이블의 모든 조합이 생성됨
+=>컬럼의 개수는 2개 테이블의 컬럼의 개수 합이고 행의 개수는 2개 테이블의 행의 개수의 곱으로 만들어짐
+=>특별한 경우가 아니면 수행하지 않는것이 좋은데 너무 많은 데이터가 생성되서 메모리 부담도 크고 수행 속도도 느림
+
+=> emp 테이블과 dept 테이블의 cross join
+
+select * from emp;
+열의 갯수가 8개이고 행의 개수는 14개
+
+select * from dept;
+열 4개, 행 3개
+
+cross join
+select * from emp, dept;
+열 개수는 11개, 행의 개수는 56개
+
+4) equi join
+=> 2개의 테이블에 동일한 의미를 갖는 컬럼이 존재할 때 2개의 컬럼의 값이 일치하는 경우에만 조합해 달라고 요청
+일반적으로는 foreign key를 이용해서 많이 수행함
+from 절에 테이블을 이름을 작성할 때 순서가  중요해짐
+
+=> emp 테이블과 dept 테이블에는 deptno라는 컬럼이 같이 존재
+동일한 의미를 갖는 컬럼이 존재하는 경우는 where절에서 동일한 의미의 컬럼값이 같다라는 조건을 추가해서 조인 수행
+
+=> emp 테이블과 dept 테이블을 조인해서 모든 컬럼을 조회
+select * from emp, dept
+where emp.DEPTNO = dept.DEPTNO;
+결과로 열 개수 11개 나오지만 행의 개수는 14개로 줄어듦
+
+=> 컬럼 이름 기재 시 테이블 이름을 같이 기재해야하는데 동일한 이름의 컬럼 없을 때는 테이블 이름 생략 가능
+동일한 이름의 컬럼이 다른 테이블에 존재 시 이름이 모호하지 않도록 테이블 이름을 기재해야 함
+
+=> 테이블 이름을 기재 시 새로운 이름을 부여하는 것이 가능
+테이블 이름 다음에 새로운 이름을 기재하면 됨
+테이블 이름이 길 때나 self join을 할 때 테이블을 구분하기 위해서 부여
+select * from emp e, dept d
+where e.DEPTNO = d.DEPTNO;
+
+5) non equi join
+=>조인 조건을 작성 시 = 이외의 연산자를 사용하는 것
+=>emp 테이블에는 급여를 의미하는 sal 컬럼이 존재하고, salgrade 테이블은 등급을 의미하는 grade, 
+등급의 최저 급여 의미하는  losal, 최대 급여 의미하는 hisal이 존재
+
+=> emp 테이블에서 자신의 sal을 가지고 salgrade의 grade를 조회
+select ENAME , SAL , grade from emp e, salgrade s 
+where sal between losal and hisal;
+
+6)self join
+=>테이블 1개를 가지고 join
+=>하나의 테이블에 동일한 의미를 갖는 컬럼이 2개 이상 존재하는 경우에 가능
+emp 테이블의 경우는 empno가 사원번호이고 mgr이 관리자 사원번호
+
+sns의 경우라면 자신의 id와 친구 id를 갖는 친구 테이블을 만들 수 있는데 이 경우도 self join이 가능한 경우
+
+=>emp 테이블에서 사원의 이름과 관리자의 이름을 조회, (앞에 나, 뒤에 내 친구나 상사..), king은 관리자 없어서 안나옴..
+select employee.ENAME as 사원이름, manager.ENAME as 관리자이름 from emp employee, emp manager
+where employee.MGR = manager.EMPNO;
+
+=>emp 테이블에서 사원의 급여와 관리자의 급여를 조회
+select employee.ENAME as 사원이름, employee.SAL as 사원급여, manager.SAL as 관리자급여 from emp employee, emp manager
+where employee.MGR = manager.EMPNO;
+
+7)ANSI cross join
+=>ANSI : 미국 표준 협회, 특정 데이터베이스에서는 안될 수도 있음
+select * from emp cross join dept;
+
+8) ANSI inner join
+=>equi join을 다른 방식으로 기재해서 수행
+select * from emp, dept
+where emp.DEPTNO = dept.DEPTNO;
+
+select * from emp inner join dept
+on emp.DEPTNO = dept.DEPTNO;
+
+=> 조인 조건에 사용되는 컬럼의 이름이 같은 경우는 on 절 대신에 using(컬럼이름)을 기재하는 형태로도 가능한데
+이 경우는 조인에 사용된 컬럼(ex DEPTNO)이 한번만 조회됨
+select * from emp inner join dept
+using(DEPTNO);
+
+9) natural join
+=>조인하고자 하는 컬럼의 이름이 동일한 경우 조인 조건을 생략하고 조인을 할 수 있는 경우
+이 경우도 조인에 사용된 컬럼(ex DEPTNO)이 한번만 조회됨
+select * from emp natural join dept;
+
+10)outer join
+=> 한쪽에만 존재하는 데이터도 조인에 참여하는 것
+=> Mysql에는 left outer join과 right outer join을 지원
+full outer join 은 지원하지 않는데 이는 set 연산으로 해결
+
+=>emp 테이블의 deptno는 10,20,30이 존재하고 dept 테이블의 deptno는 10,20,30,40이 있음
+inner join을 수행 시 deptno가 40인 데이터는 조회되지 않음.. 이 경우 outer join 사용
+
+select * from emp left outer join dept
+on emp.DEPTNO = dept.DEPTNO;	-- 왼쪽 :전부참여, 오른쪽 :있는 거만 참여(결과 14행)
+
+-- emp 테이블의 모든 데이터는 조인에 참여하고 dept 테이블의 데이터는 일치하는 것만 참여
+
+select * from emp right outer join dept
+on emp.DEPTNO = dept.DEPTNO;
+dept 테이블에만 존재했던 deptno가 40인 데이터도 조인에 참여하는데
+대신 emp 테이블의 모든 컬럼의 값은 null이 됨(결과 15행)
+
+2. set operator
+=>테이블의 구조가 완전히 일치할 때만 사용할 수 있는 연산
+구조가 일치한다는 의미는 컬럼의 개수와 자료형 및 순서가 일치해야 함
+컬럼의 이름이나 의미는 아무 상관 없음
+
+=> union, union all, intersect, except
+union은 합집합인데 중복된 데이터는 1번만 출력
+union all 은 합집합인데 중복된 데이터도 전부 출력
+intersect 는 교집합
+except 는 차집합
+
+=> union 과 union all 의 차이
+select deptno from dept
+union select deptno from emp;
+
+select deptno from dept
+union all select deptno from emp;
+
+=> intersect : mariaDB에서는 가능한데 mysql에서는 join으로 해결 (결과값 10,20,30)
+select deptno from dept
+intersect select deptno from emp;
+
+select distinct emp.deptno from emp, dept
+where emp.DEPTNO = dept.DEPTNO;
+
+-- =>차집합 : maria db에서는 except 사용 , oracle에서는 minus, mysql에는 아직 except 없음.. (결과값 40)
+select distinct deptno from dept
+where DEPTNO not in(select distinct DEPTNO from emp);
