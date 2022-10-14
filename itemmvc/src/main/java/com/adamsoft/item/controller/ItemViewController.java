@@ -17,7 +17,7 @@ public class ItemViewController {
 	
 	@RequestMapping(value = "getall", method = RequestMethod.GET)
 	public String getAll() {
-		//필요한 서비스 메서드 호출
+		//필요한 서비스 메서드 호출.
 		List<ItemDTO> list = itemService.getAll();
 		System.out.println(list);
 		
