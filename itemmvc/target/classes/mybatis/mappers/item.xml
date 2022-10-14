@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+<mapper namespace="itemmapper">
+	<!-- item 테이블의 데이터를 전부 가져오는 sql (테이블이름 대소문자 맞춰주는 것이 좋음)-->
+	<select id="getall" resultType="ItemDTO">
+		select * from ITEM
+	</select>
+</mapper>
