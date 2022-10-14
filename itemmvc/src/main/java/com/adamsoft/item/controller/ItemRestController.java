@@ -28,7 +28,7 @@ public class ItemRestController {
 		return map;
 	}
 	
-	//상세보기
+	//상세보기 .. 브랜치 테스트
 	@RequestMapping(value = "{itemid}/item.json", method = RequestMethod.GET)
 	public Map<String, Object> getItem(@PathVariable("itemid") Integer itemid){
 		Map<String, Object> map = new HashMap<String, Object>();
