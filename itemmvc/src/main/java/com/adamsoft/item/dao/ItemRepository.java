@@ -10,15 +10,20 @@ import com.adamsoft.item.domain.ItemDTO;
 //클래스에 @Component를 설정 시 servlet-context.xml
 //파일의 component-scan에 설정된 패키지에 속한 경우 bean을 자동 생성
 //@repository, @service, @contoller, @restcontroller를 기재하면 역할까지 부여함
-@Repository
+//@Repository
 public class ItemRepository {
-	@Autowired
+	//@Autowired
 	private SqlSession sqlSession;
 	
 	//테이블 전체 데이터를 가져오는 메서드
 	public List<ItemDTO> getAll() {
 		
 		return sqlSession.selectList("itemmapper.getall");
+	}
+	
+	//하나의 데이터를 가져오는 메서드
+	public ItemDTO getItem(Integer itemid) {
+		return sqlSession.selectOne("itemmapper.getitem", itemid);
 	}
 	
 	/*

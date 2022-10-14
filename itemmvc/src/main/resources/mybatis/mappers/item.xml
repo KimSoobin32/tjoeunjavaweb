@@ -8,4 +8,9 @@
 	<select id="getall" resultType="ItemDTO">
 		select * from ITEM
 	</select>
+	
+	<!-- 상세보기 구현 -->
+	<select id="getitem" parameterType="java.lang.Integer" resultType="ItemDTO">
+		select * from ITEM where itemid = #{itemid}
+	</select>
 </mapper>
