@@ -1,4 +1,5 @@
 https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/
+https://github.com/spring-projects/spring-boot/wiki
 **Spring Boot
 1.sts(eclipse)에서 spring boot web project 생성 및 실행
 =>file - new - spring starter project
