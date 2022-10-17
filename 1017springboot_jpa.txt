@@ -1,0 +1,413 @@
+**Spring Boot
+1.sts(eclipse)에서 spring boot web project 생성 및 실행
+=>file - new - spring starter project
+프로젝트 이름 sts
+type - 빌드도구 선택, packaging - 배포방법, 자바버젼, 언어, 패키지이름을 설정 후 필요한 의존성 설정
+스프링 버전에 글자 들어가 잇으면 안정화 안된것..
+spring boot devtools,lombok,spring web 선택
+클래스 만들때는 기본 패키지 안에..
+refactor - rename
+
+=>Controller 생성 및 작성 (기본패키지com.adamsort.sts안에 controller 패키지 생성)- controller.CommonController
+@RestController
+public class CommonController {
+	@GetMapping("/")
+	public String home() {
+		return "helllo spring boot web";
+	}
+}
+
+=>프로젝트 선택 후 우클릭 run as - spring boot app
+
+=>브라우저에 접속해서 localhost:8080/ 입력 후 확인
+
+https://start.spring.io/ =>여기서 만들어서 다운 후 intelij 커뮤니티 버전에서 여는 방법도 있음
+
+프로젝트 우클릭 - run as - maven build - goals에 36p 명령어 입력(clean...)
+maven 수명 주기 문제
+
+2.postman
+=>API Server 테스트를 위한 툴
+다운로드 받아서 사용
+
+
+3.REST API Server 생성 및 테스트
+1)spring starter project 생성
+=>spring boot devtools,lombok,spring web의 의존성 설정
+2)get(조회) 방식의 요청을 Controller클래스 생성 - controller.GetController
+@RestController
+//클래스에 설정 시 모든 요청에 공통된 url
+@RequestMapping("/api/v1/get-api")
+public class GetController {
+	
+}
+
+3)hello라는 요청을 get방식으로 처리하는 메서드를 GetController 클래스에 추가
+	@RequestMapping(value = "hello", method = RequestMethod.GET)
+	public String getHello() {
+		return "hello get";
+	}
+=>애플리케이션 실행	
+=>확인
+브라우저에서 확인 http://localhost/api/v1/get-api/hello
+브라우저에서 확인하는 것은 get방식만 가능
+
+4)스프링 4.3 버전 이후에 추가된 요청 처리 어노테이션
+=>@GetMapping
+=>PostMapping
+=>@PutMapping
+=>@DeleteMapping
+
+value만 설정하면 되고 method는 작성할 필요가 없음
+
+5)get방식에서 파라미터 전송 및 처리
+=>파라미터가 한개이거나 개수가 적을 때는 파라미터를 별도로 만들지 않고 
+url에 포함시켜서 적송하고 @PathVariable을 이용해서 읽어서 처리
+=>query string이라고 부르는 url뒤에 ?를 추가하고 {키} = {값} 형태로 전송을 하고 
+HttpServletRequest, @RequestParam, Command 객체를 이용해서 읽어서 처리 (총 3방법)
+
+6)PathVariable을 이용한 처리
+=>GetController 클래스에 요청을 처리하는 메서드를 추가
+//요청:http://localhost/api/v1/get-api
+// /variable/문자열
+@GetMapping("/variable/{variable}")	//{}의 변수와 String 다음의 변수명이 일치해야 함,또는 아래와 같이 @PathVariable("variable") 써줘야 함..
+public String getVatiable(@PathVariable("variable") String var) {
+	return var;
+}
+
+=>실행을 한 후 브라우저나 api test 툴을 이용해서 확인
+
+7)파라미터를 이용한 데이터 전송 및 확인
+=>name, email, organization이라는 항목을 갖는 dto 클래스 생성하고 작성
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+public class MemberDTO {
+	private String email;
+	private String name;
+	private String organization;
+}
+
+=>GetController에 메서드 추가
+//파라미터 처리
+@GetMapping(value = "/parameter1")
+public String parameter1(HttpServletRequest request) {	//가장 고전적인 방법.., 무조건 String으로밖에 가져올 수 없음
+	String result = request.getParameter("email")+ " "+ request.getParameter("name")+" "+request.getParameter("organization");
+	return result;
+}
+
+//파라미터를 읽어서 형변환 까지 수행
+@GetMapping(value = "/parameter2")
+public String parameter2(@RequestParam("email") String email, @RequestParam("name") String name, @RequestParam("organization") String organization) {	//자료형 변환 가능(int...)
+	String result = email+ " "+ name+" "+organization;
+	return result;
+}
+
+//파라미터가 어떻게 올지 모를 경우 Map을 이용 ..권장하진 않음
+@GetMapping(value = "/parameter3")
+public String parameter3(@RequestParam Map<String, String> param) {	
+	StringBuilder result = new StringBuilder();
+	//문자열에 더하기 쓰면 데이터 leak 발생.. 다음과 같이 Stringbuilder이용해야..
+	//Map 순회
+	param.entrySet().forEach(map->{	//매개변수->내용
+		result.append(map.getKey()+":"+map.getValue()+"\n");
+	});
+	
+	return result.toString();
+}
+
+//권장
+//파라미터들을 하나의 인스턴스로 묶어서 처리
+//파라미터가 여러개일 때 권장하는 방식
+@GetMapping(value = "/parameter4")
+public String parameter4(MemberDTO memverDTO) {
+	
+	return memverDTO.toString();
+}
+
+
+8)post(삽입) 요청을 처리하기위한 controller 생성 - controller.PostController
+=>post 요청에서는 리소스나 값을 http body 에 담아서 서버에 전달
+@RequestBody는 http의 body 내용을 해당 어노테이션이 지정된 객체에 매핑하는 역할을 수행
+
+@RestController
+//클래스에 설정 시 모든 요청에 공통된 url
+@RequestMapping("/api/v1/post-api")
+public class PostController {
+	//POST방식에서 파라미터 매핑을 할 때는 @RequestBody를 이용
+	@PostMapping(value = "/member")
+	public String postMemberDTO(@RequestBody MemberDTO memverDTO) {
+		
+		return memverDTO.toString();
+	}
+}
+
+http://localhost/api/v1/post-api/member
+post body-raw-json
+{
+    "email":"ggangpae1@gmail.com",
+    "name":"adam",
+    "organization":"adamsoft"
+}
+
+9)put(데이터 수정) 요청을 처리할 컨트롤러를 생성 - controller.PutController
+=>post 요청 처리와 방식이 동일
+@RestController
+//클래스에 설정 시 모든 요청에 공통된 url
+@RequestMapping("/api/v1/put-api")
+public class PutController {
+	@PutMapping(value = "/member")
+	public String putMemberDTO(@RequestBody MemberDTO memverDTO) {
+		
+		return memverDTO.toString();
+	}
+}
+
+=>문자열을 리턴하면 텍스트 형식으로 응답이 전송됨
+=>dto 객체나 map 또는 List를 리턴하면 json형식으로 응답이 전송됨
+=>PutController에 요청 처리 메서드를 작성하고 확인
+//dto 인스턴스를 리턴하면 json형식으로 출력됨
+@PutMapping(value = "/member1")
+public MemberDTO putMemberDTO1(@RequestBody MemberDTO memverDTO) {
+	
+	return memverDTO;
+}
+
+=>ResponseEntity 클래스를 이용하면 body메서드에 출력하고자 하는 데이터를 설정하고 status에 상태를 설정해서 응답 코드도 같이 전송 가능
+=>Putcontroller에 메서드 추가해 실행
+@PutMapping(value = "/member2")
+public ResponseEntity<MemberDTO> putMemberDTO2(@RequestBody MemberDTO memverDTO) {
+	
+	return ResponseEntity.status(HttpStatus.ACCEPTED).body(memverDTO);
+}
+
+10)delete 요청을 처리하기 위한 DeleteController를 생성 후 요청을 처리하는 메서드를 추가해서 확인
+=>delete 요청은 get 과 동일한 방식으로 처리함
+@RestController
+//클래스에 설정 시 모든 요청에 공통된 url
+@RequestMapping("/api/v1/delete-api")
+public class DeleteController {
+	@DeleteMapping(value = "/request")
+	public String parameter4(@RequestParam("email") String email) {
+		
+		return email;
+	}
+}
+
+4.로깅 라이브러리
+=>logback
+
+5.Test
+1)테스트 코드를 작성하는 이유
+=>개발과정에서 문제를 미리 발견할 수 있음
+=>리팩토링의 리스크가 줄어듬 (상속-하위가 상위로부터 물려받음, 다형성.. )
+=>애플리케이션을 실행해서 직접 테스트 하는 것보다는 테스트를 빠르게 진행 가능
+=>하나의 명세 문서로서의 기능을 수행
+=>불필요한 코드가 추가되는 것을 방지
+
+2)테스트 종류
+=>인수 테스트
+=>시스템 테스트 - 운영환경 가기 직전(스트레스 테스트 - 동시 100명..)
+=>통합 테스트 : 여러 모율을 합쳐서 테스트(흐름)
+=>단위 테스트 - 블랙 박스 테스트(결과만), 화이트 박스 테스트(안의 내부구조)
+메서드 단위로 테스트
+
+3)테스트 코드 작성 방법
+=>given : 테스트 전에 환경 설정
+=>when : 테스트 코드를 작성하고 결과를 가져오는 것
+=>then : 결과를 검증
+결과를 검증하는 것은 테스트 라이브러리가 해야 함
+사람이 판단하도록 하면 안됨(true, false 형태로 나타내는 것을 권장)
+
+4)좋은 테스트를 위한 5가지 속성(FIRST)
+=>fast : 빠르게
+=>isolation : 격리 - 다른 코드와 분리
+=>repeatable : 반복 가능하도록(재사용)
+=>self Validating : 자가 검증
+=>timely : 적시에 해야 함
+
+6.JUnit
+1)JUnit
+=>자바에서 많이 사용하는 단위 테스트 및 통합 테스트 라이브러리
+=>어노테이션만으로 테스트 코드를 작성할 수 있는 장점을 가지고 있음
+=>이클립스 내장
+
+2)수명 주기
+=>@Test : 테스트 코드를 포함하는 메서드를 정의
+=>@BeforeAll : 테스트를 시작하기 전에 호출되는 메서드 정의
+=>@AfterAll : 테스트를 종료할 때 호출되는 메서드 정의
+=>@BeforeEach : Test메서드가 호출되기 직전에 호출되는 메서드 정의
+=>@AfterEach : Test메서드가 호출된 후에 호출되는 메서드 정의
+
+**Spring JPA
+1.ORM (object Relational Mapping)
+=>객체 지향 패러다임을 관계형 데이터베이스에 적용하기 위한 기술
+=>객체와 관계형 데이터베이스의 테이블을 매핑 시켜서 사용하는 기술
+=>VO형태의 클래스와 관계형 데이터베이스의 클래스는 만드는 방법이 유사하다는 데에서 착안
+=>클래스와 테이블이 완전히 동일하지는 않기 때문에 이를 해결하기 위해서 ORM이 등장
+
+1)장점
+=>특정 데이터베이스 종속되지 않음
+=>객체 지향적 프로그래밍
+=>생산성 향상
+
+2)단점
+=>복잡한 쿼리를 처리하는 것이 어려움
+=>학습 시간이 김
+=>성능 저하의 위험
+
+3)JAP (Java Persistence API)
+=>java orm 기순에 대한 표준 인터페이스
+=>구현체로는 Hibernate, EclipseLink, Openjpa 등이 있는데 Hibernate가 가장 많이 사용됨
+
+Spring data JPA <-> Hibernate <-> JDBC <-> database
+
+1)구성 요소
+=>Entity : 테이블에 대응되는 클래스, 클래스 위에 @Entity를 붙여서 생성
+=>Entity Manager : Entity에 대한 데이터베이스 작업을 제공
+=>Entity Manager Factory : Entity Manager를 생성해주는 클래스
+=>Persistence Context : 실제 데이터베이스에 적용하는 클래스
+
+2)Persistence Context
+=>데이터베이스와 애플리케이션 사이에 중간 계층
+=>버퍼링이나 캐싱등을 활용하기 위해 존재
+=>쓰기 지연을 구현 (가지고 있다가 커밋을 만나면 실제 세이브)
+
+3.JPA를 지원하는 프로젝트를 생성하고 테스트코드를 작성 후 실행
+1)프로젝트 생성 (file - new - spring starter project)
+의존성 설정 : spring boot devtools,lombok,spring web, spring data jpa, 사용하고자 하는 데이터베이스(mysql driver)
+
+2)application.properties 파일에 데이터베이스 접속 정보 설정
+=>jpa를 사용하는 프로젝트를 시작할 때 데이터베이스에 접속을 시도하기 때문에 실행을 위해서는 반드시 데이터베이스 접속 정보를 먼저 설정해야 함
+#데이터베이스 접속 정보 (중간에 엔터나 공백 치면 안됨)
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.datasource.url=jdbc:mysql://localhost:3306/webmail?serverTimezone=UTC
+spring.datasource.username=hong
+spring.datasource.password=a123456
+
+=>실행을 하면 DataSource 생성 부분과 Hibernate 연동한다는 로그가 출력됨
+
+4.Entity Class
+=>데이터베이스 테이블과 매핑이 되는 클래스
+1)관련 Annotation
+=>@Entity : Entity클래스로 선언
+=>@Table : 데이터베이스에 연결되는 테이블 이름으로 생략하면 클래스 이름으로 테이블을 설정
+MySQL 같은 경우는 테이블 이름 중간에 대문자가 들어가면 _를 추가하고 소문자로 변경함
+=>@Id : 테이블의 기본키로 사용할 속성을 지정
+=>@GeneratedValue : 키값을 생성하는 전략 명시
+=>@Column : 속성과 컬럼을 매핑하는데 생략하면 속성 이름과 일치하는 컬럼과 매핑
+=>@Lob : BLOB나 CLOB타입
+=>@CreationTimestamp : 삽입할 때 시간 자동 저장
+=>@UppdateTimestamp : 수정할 때 시간 자동 저장
+=>@Enumerated : enum타입
+=>@Transient : 데이터베이스 매핑하지 않는 속성
+=>@Temporal : 날짜 타입
+=>@CreateDate : Entity가 생성되어 저장될 때 시간 자동 저장
+=>@LastModifiedDate : Entity가 수정되어 저장될 때 시간 자동 저장
+
+2)generated Value
+=>키 생성 전략
+AUTO : Hibernate가 생성 방식을 결정
+identity : mysql이나 maria db의 경우는 auto_increment 방식을 이용
+sequence : 오라클의 sequence 이용
+table : 키 생성 전용 table을 생성해서 키를 생성하는데 @TableGenerator와 같이 사용,
+모든 관계형 데이터베이스에서 동일한 방식으로 키를 생성하고자 할 때 이용
+
+3)column
+=>name : 연결할 컬럼 이름, 생략하면 속성 이름과 동일한 컬럼과 매핑
+=>unique
+=>insertable : 삽입가능 여부
+=>updateable : 수정가능 여부
+=>length : 길이
+=>nullable : null 가능 여부
+=>columnDefinition : 자료형과 제약조건을 문자열로 직접 설정
+=>precision : 소수를 포함하는 전체 자릿수로 BigDecimal에서 이용
+=>scale : 소수 자릿수로 BigDecimal에서 이용 (float, double은 자릿수 정해져 있어서 이용 못함..)
+
+4)Entity 클래스 생성 - entity.Memo
+@Entity
+@Table(name="tbl_memo")
+
+@ToString
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class Memo {
+	//기본키 설정 - Hibernate가 알아서 결정
+	@Id
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	private Long mno;
+	@Column(length=200, nullable=false)
+	private String memoText;
+}
+
+5)application.properties 파일에 설정 추가
+#ddl 구문 수행 옵션 설정
+spring.jpa.hibernate.ddl-auto=update
+
+spring.jpa.properties.hibernate.show_sql=true
+spring.jpa.properties.hibernate.format_sql=true
+logging.level.org.hibernate.type.descriptor.sql=trace
+spring.jpa.database-platform=org.hibernate.dialect.MySQL8Dialect
+
+6)추가한 설정 내용
+=>spring.jpa.hibernate.ddl-auto : DDL문장을 어떻게 할 것인지 옵션을 설정
+none : 아무것도 수행하지 않음 - 대부분의 데이터베이스에서 기본값
+create : SessionFactory가 시작될 때 기존 테이블을 drop하고 create
+create-drop : SessionFactory가 시작될 때 create하고 SessionFactory가 종료될 때 drop
+update : SessionFactory가 시작될 때 변경된 내용을 확인해서 적용 (팀프로젝트에서는 사용하지 않음- 서로 시작할 때마다 바뀌어버리면 안되니까..)
+validate : SessionFactory가 시작될 때 변경된 내용을 확인해서 Entity와 테이블이 정보가 일치하지 않으면 에러를 발생
+
+=>spring.jpa.properties.hibernate.show_sql=true : 콘솔에 sql문 출력 여부
+=>spring.jpa.properties.hibernate.format_sql=true : sql을 정리해서 출력
+=>logging.level.org.hibernate.type.descriptor.sql=trace : 바인딩하는 데이터를 출력 (뭐가 어디에 들어가는지 ex mybatis #{tel})
+=>spring.jpa.database-platform=org.hibernate.dialect.MySQL8Dialect : 데이터베이스 종류
+
+콘솔
+Hibernate: 
+    
+    create table hibernate_sequence (
+       next_val bigint
+    ) engine=InnoDB
+Hibernate: 
+    
+    insert into hibernate_sequence values ( 1 )
+Hibernate: 
+    
+    create table tbl_memo (
+       mno bigint not null,
+        memo_text varchar(200) not null,
+        primary key (mno)
+    ) engine=InnoDB
+
+
+5.JpaRepository 인터페이스
+=>데이터베이스 작업을 위한 인터페이스
+1)데이터베이스 작업을 위한 방법
+=>제공되는 메서드 이용 : 구현할 필요 없음
+=>메서드 이름을 생성 : JPA에서 제공되는 규칙에 따라 메서드를 선언하면 JPA가 구현해줌
+=>JPA Query 이용
+jap가 제공하는 query 이용할 수 있음
+sql을 작성해서 사용할 수 있음
+Querydsl을 작성해서 사용할 수 있음 (학습 시간 김 - 이부분..)
+
+2)인터페이스 생성 방법
+JpaRepository<Entity Class 이름, 기본키의 자료형> 을 extends하는 인터페이스를 생성
+
+3)제공되는 메서드
+=>Entity save(Entity 객체) : insert나 update 수행
+매개변수로 대입한 데이터의 기본키 값이 존재하면 update, 그렇지 않으면 insert
+
+=>Entity findById(ID 값) : ID에 해당하는 데이터를 찾아서 리턴하는데 존재하지 않으면 null을 리턴
+
+=>List<Entity> findAll() : 테이블의 모든 데이터를 List로 리턴하는데 존재하지 않으면 List의 size가 0
+
+=>deleteById(ID값) 또는 delete(Entity 객체) : 삭제 (리턴은 Entity)
+
+=>count() : 테이블의 데이터 개수 리턴
+
+프록시 패턴.. 내가 만든 클래스/인터페이스 스프링이 상속받아.. 씀..
+new : 내가 만든거 불름
