@@ -1,0 +1,711 @@
+4)Memo 엔티티에 기본 작업 수행 위한 repository 인터페이스 생성 persistence.MemoRepository
+public interface MemoRepository extends JpaRepository<Memo, Long>{
+
+}
+
+5)기본 작업 테스트
+=>src/test/java 디렉토리에 Test 클래스를 생성하고 주입 받는지 테스트 (RepositoryTest)
+@SpringBootTest
+public class RepositoryTest {
+	//Repository 주입
+	@Autowired
+	MemoRepository memoRepository;
+	
+	//주입 테스트
+	@Test
+	public void DITest() {
+		System.out.println(memoRepository); 	//org.springframework.data.jpa.repository.support.SimpleJpaRepository@ff12b53
+	}	//에러 날 시 빈이 안생겼거나(기본 패키지 안에 생성해야 함) 두개 이상 생겼을 때(new)..
+}
+
+cafe24 - maria db driver 사용해야 함.. properties도..
+
+=>삽입하는 메서드를 추가하고 삽입을 테스트
+//@Test
+public void insert() {
+	//Memo memo = new Memo();
+	//memo.setMemoText("메모");
+	
+	//Memo memo = Memo.builder().mno(1L).memoText("메모").build();	//빌드 사용 시 스택을 한번만 만듦
+	//memoRepository.save(memo);
+	
+	//데이터 100개 삽입 - insert문 하나씩 100번 수행됨..
+	IntStream.rangeClosed(1, 100).forEach(i -> {
+		Memo memo = Memo.builder().memoText("sample..."+i).build();
+		memoRepository.save(memo);
+	});
+}
+
+=>수정하는 메서드를 추가하고 수정을 테스트
+@Test
+public void update() {
+	Memo memo = Memo.builder().mno(1L).memoText("수정").build();
+	memoRepository.save(memo);
+}	//기본키의 값이 존해하면 (있는 번호 쓰면) 수정, 존재하지 않으면 삽입 됨..
+
+=>테이블의 전체 데이터를 조회하는 메서드를 생성하고 테스트
+@Test
+public void getList() {
+	List<Memo> list = memoRepository.findAll();
+	list.stream().forEach(memo -> {
+		System.out.println(memo);
+	});
+}
+콘솔
+Memo(mno=1, memoText=수정)
+Memo(mno=2, memoText=sample...2)
+Memo(mno=3, memoText=sample...3) ...
+
+=>기본키를 이용해서 하나의 데이터를 조회하는 메서드를 생성하고 테스트
+@Test
+public void getMemo() {
+	Optional<Memo> result = memoRepository.findById(1L);	//널 가능하기 때문에 리턴타입 Memo가 아니라 Optional<Memo>로 써줘야 함
+	if(result.isPresent()) {
+		System.out.println(result.get());
+	}else{
+		System.out.println("데이터 없음");	//아이디 101L넣었을 때..
+	}
+}
+
+
+=>삭제하는 메서드를 추가하고 테스트
+//@Test
+public void deleteMemo() {
+	memoRepository.deleteById(100L);
+	memoRepository.delete(Memo.builder().mno(99L).build());
+}
+
+6)페이징 / 정렬
+=>페이지 단위 TOP N을 구현하기 위해서는 데이터베이스마다 다른 sql을 이용
+=>spring jpa에서는 dialect를 설정하면 findAll 메서드에 Pageable이라는 객체를 생성해서 대입하면 연동하는 데이터베이스에 맞게 sql을 생성해서 수행
+이 경우 리턴되는 데이터 타입은 Page<Entity> 타입임
+=>Pageable 객체는 PageRequest 클래스의 of 메서드를 이용해서 생성
+생성할 때 page번호, 데이터개수, Sort 객체를 대입해서 생성
+=>Sort객체는 생략이 가능하고 생성을 할 때는 Sort.by("컬럼이름").ascending() 이나 descending()을 호출
+여러개의 조건을 정렬 기준으로 사용할 때는 여러개의 sort 객체를 생성한 후
+sort객체.and(다른 sort 객체-두번째 기준)
+
+7)페이징과 정렬을 위한 메서드를 테스트 클래스에 생성한 후 테스트
+//페이지 단위로 가져오기
+@Test
+public void paging() {
+	//0번 페이지 10개의 데이터 조회
+	Pageable page = PageRequest.of(0, 10);	//다음 페이지 하려면(1, 10)
+	Page<Memo> result = memoRepository.findAll(page);
+	result.get().forEach(memo -> {
+		System.out.println(memo);
+	});
+}
+
+//정렬 수행
+@Test
+public void sorting() {
+	//0번 페이지 10개의 데이터 조회
+	Sort sort = Sort.by("mno").descending();	//org.springframework.data.domain.
+	Pageable page = PageRequest.of(0, 10, sort);
+	Page<Memo> result = memoRepository.findAll(page);
+	result.get().forEach(memo -> {
+		System.out.println(memo);
+	});
+}
+
+7)Query Methods
+=>메서드의 이름 자체가 query인 메서드
+=>규칙은 https://docs.spring.io/spring-data/jpa/docs/current/reference/html/#jpa.query-methods
+=>이름 만드는 규칙
+작업이름 + (Entity 이름) + by + 속성이름
+Entity이름은 생략하면 Repository를 만들 때 지정한 Entity이름이 자동으로 설정
+=>여러가지 키워드를 조합해서 생성하는 것이 가능
+=>select 구분의 경우 return 타입이 List타입이나 배열인데 Pageable객체를 대입하면 Page<Entity>
+select 이외의 구문(delete)은 리턴 타입이 void
+
+Memo 테이블에서 memoText를 가지고 조회하는 메서드
+public List<Memo> findByMemoText(String memoText);
+
+=>MemoRepository 인터페이스에 필요한 메서드를 선언
+public interface MemoRepository extends JpaRepository<Memo, Long>{
+	//mno 2개를 입력받아서 2개 사이에 있는 데이터를 조회
+	public List<Memo> findByMnoBetween(Long from, Long to);
+	
+	public Page<Memo> findByMnoBetween(Long from, Long to, Pageable p);
+	
+	public List<Memo> findByMnoBetweenOrderByMnoDesc(Long from, Long to);
+	
+	//삭제하는 메서드
+	public void deleteByMnoBetween(Long from, Long to);
+	
+	public void deleteByMnoLessThan(Long from);
+}
+
+=>Test 클래스에서 테스트
+//@Test
+public void naming1() {
+	List<Memo> list = memoRepository.findByMnoBetween(10L, 30L);
+	list.stream().forEach(memo -> {
+		System.out.println(memo);
+	});
+}
+
+//@Test
+public void naming2() {
+	Pageable p = PageRequest.of(1, 5);
+	Page<Memo> result = memoRepository.findByMnoBetween(10L, 30L, p);
+
+	result.get().forEach(memo -> {
+		System.out.println(memo);
+	});
+}
+
+//@Test
+public void naming3() {	
+	List<Memo> list = memoRepository.findByMnoBetweenOrderByMnoDesc(10L, 30L);
+	list.stream().forEach(memo -> {
+		System.out.println(memo);
+	});
+}
+
+//@Test
+@Commit
+@Transactional
+public void naming4() {	
+	memoRepository.deleteByMnoBetween(10L, 30L);	//10~30 삭제됨
+	
+}
+
+//@Test
+@Commit
+@Transactional
+//삽입이나 삭제 수정 메서드 호출 시 @Transactional적용해주는 것이 좋음
+//삭제의 경우는 필수로 지정해야 하는 경우가 많음(없으면 동작 안됨)
+//트랜젝션은 Service 계층에서 적용.. repository에서 적용하지 않음.. 삽입 수정에서도 해주는 것 ㅊㅊ
+public void naming5() {	
+	memoRepository.deleteByMnoLessThan(10L);	//1~9 삭제됨
+	
+}
+
+8)@Query
+=>메서드 이름과 상관없이 JPQL이나 Native SQL을 수행할 수 있도록 해주는 어노테이션
+=JPQL은 ORM에서 제공하는 query인데 sql과 유사하지만 동일하지는 않음
+=>파라미터 바인딩 가능
+?1, ?2 이런식으로 순서를 설정해서 바인딩 가능
+@Param의 형태로 이름을 이용해서 바인딩 가능
+#{}의 형태로 바인딩 가능
+=>Page 단위로 데이터를 가져올 수 잇는데 이 경우 데이터 개수를 세는 countQuery 속성이 반드시 설정되어야 함
+=>nativeQuery속성을 true로 설정하면 sql을 사용하는 것도 가능
+=>메서드 이름은 우너하는 이름을 사용한느 것이 가능하고 삽입, 삭제, 수정을 할 때는 트랜젝션을 적용하야 하고 @Modifying과 같이 사용해야 함
+
+9)@Query를 이용해서 수정하는 메서드를 만들고 테스트
+=>MemoRepository 인테페이스에 메서드를 선언
+//데이터를 수정하는 메서드
+//Memo는 테이블의 이름이 아니고 Entity의 이름임
+//속성도 Entity에서 속성 이름을 사용해야 함
+@Transactional
+@Modifying
+@Query("update Memo m set m.memoText = :memoText where m.mno = :mno")
+public int updateMemoText(@Param("mno") Long mno, @Param("memoText") String memoText);
+
+@Transactional
+@Modifying
+@Query("update Memo m set m.memoText = :#{#param.memoText} where m.mno = :#{#param.mno}")
+public int updateMemoText(@Param("param") Memo memo);
+
+=>테스트 클래스에서 테스트
+//@Test
+public void queryMethod1() {
+	Long mno = 31L;
+	String memoText = "데이터 수정";
+	memoRepository.updateMemoText(mno, memoText);
+}
+
+@Test
+public void queryMethod2() {
+	Memo memo = Memo.builder().mno(32L).memoText("data update").build();
+	memoRepository.updateMemoText(memo);
+}
+
+10)@Query 페이징
+//페이지 단위로 조회
+	//countQuery가 없어도 조회는 가능하지만
+	//나중에 페이지 개수를 알 수 없음 .. 페이지 개수 알기 위해서는 같이 줘야 함
+	@Query(value = "select m from Memo m where m.mno > :mno", countQuery = "select count(m) from Memo m where m.mno > :mno")
+	Page<Memo> getListWithQuery(@Param("mno") Long mno, Pageable pageable);
+	
+=>테스트
+@Test
+public void testSelectQuery() {
+	Pageable pageable = PageRequest.of(0, 10,Sort.by("mno").descending());
+	Page<Memo> page = memoRepository.getListWithQuery(50L, pageable);
+	page.get().forEach(memo->{
+		System.out.println(memo);
+	});
+}
+	
+10)object 타입으로 리턴받기
+=>join을 수행 시 하나의 Entity 타입으로 리턴받기 어려움
+=>Entity를 사용하기 애매한 경우에는 리턴을 받을 때 Page<Object[]>을 이용해서 리턴받을 수 있음
+=>가장 좋은 경우는 2개 테이블의 모든 데이터를 사용할 수 있는 Entity Type을 만드는 것임
+=>MemoRepository 에 메서드 선언
+	@Query(value = "select m.mno, m.memoText, CURRENT_DATE from Memo m where m.mno > :mno", countQuery = "select count(m) from Memo m where m.mno > :mno") //조인 시 또 엔티티 테이블 이름 쓰고..하면 됨
+	Page<Object[]> getListWithQueryObject(@Param("mno") Long mno, Pageable pageable);
+	
+=>테스트
+@Test
+public void testSelectQueryObject() {
+	Pageable pageable = PageRequest.of(0, 10,Sort.by("mno").descending());
+	Page<Object[]> page = memoRepository.getListWithQueryObject(50L, pageable);
+	for(Object[] ar : page) {
+		//System.out.println(Arrays.toString(ar));
+		//mno만 추출해서 사용
+		Long mno = (Long)ar[0];	//memoText는 [1], 날짜는 [2] -string
+		System.out.println(mno);
+	}
+}
+
+11)Native SQL사용
+=>SQL을 이용해서 데이터베이스 작업 가능
+=>sql구문을 작성하고 nativeQuery라는 속성을 true로 설정해야 함 (hibernate는 기본이 엔티티를 인식하기 때문에 테이블이름 그냥 주면 못찾음)
+엔티티의 이름이 아닌 테이블의 이름을 사용해야 함 
+=>MemoRepository 인테페이스에 메서드를 선언
+@Query(value = "select * from tbl_memo where mno > 0", nativeQuery = true)
+List<Object[]> getNativeSQL();
+
+=>테스트
+@Test
+public void nativeSQL() {
+	List<Object[]> list = memoRepository.getNativeSQL();
+	list.stream().forEach(ar -> {	//forEach나 stream이나 상관 없음
+		System.out.println(Arrays.toString(ar));
+	});
+}
+
+query dsl (별도의 문법) - 코드셋의 도움을 받을 수 있음 (쿼리를 문자열로 쓰게 됨 방지)
+오라클 쓰고 싶을 때 spring jpa ppt 75p
+
+mvn repository에서 mariadb 찾음
+
+entity는 jpa(메모리에 올려놓고 메모리에서 작업-빠름)만 쓸 수 있음 (repository)
+마이바티스는 dto이용해야 함
+
+복잡한 쿼리는 마이바티스 쓰고 간단한건 jpa로작성하는 경우도 있음
+
+3.Service 계층 테스트
+1)Controller와 Service 계층에서 사용할 dto 클래스를 생성 - domain.MemoDTO
+@Builder
+//매개변수가 없는 생성자 - Default Constructor MemoDTO()
+@NoArgsConstructor
+@AllArgsConstructor	//MemoDTO(Long, String)
+@Data
+public class MemoDTO {
+	private Long mno;
+	private String memoText;
+}
+
+2)클라이언트 요청을 처리할 메서드의 원형을 가진 Service 인터페이스를 생성 - service.MemoService
+public interface MemoService {
+	//데이터 삽입하는 메서드
+	//jap에서는 삽입이나 수정 작업 후에 삽입이나 수정한 Entity가 리턴 됨
+	public MemoDTO insertMemo(MemoDTO memoDTO);
+	//여러 개 리턴이면 List<MemoDTO> 리턴
+	//틀정 메소드는 매개변수는 기본키만 넘길수도
+	
+}
+3)클라이언트 요청을 처리할 메서드의 구현 내용을 가진 클래스 생성 - service.MemoServiceImpl
+@Service
+//final 속성을 주입받는 생성자 - @Autowired가 필요 없음 (주입 2가지 방법)
+@RequiredArgsConstructor
+public class MemoServiceImpl implements MemoService {
+	//@Autowired
+	//private MemoRepository memoRepository;
+	
+	private final MemoRepository memoRepository;
+	
+	@Override
+	public MemoDTO insertMemo(MemoDTO memoDTO) {
+		//MemoDTO를 가지고 데이터베이스 작업에 사용할 Entity 주입		
+		Memo memo = Memo.builder().memoText(memoDTO.getMemoText()).build();
+		
+		//데이터베이스 작업 수행
+		Memo m = memoRepository.save(memo);
+		
+		//Entity를 Controller에게 전송하기 위해서 DTO로 변환
+		MemoDTO result = MemoDTO.builder().mno(m.getMno()).memoText(m.getMemoText()).build();
+		
+		return result;
+	}
+
+}
+4)src/test/java 에서 서비스 계층 테스트할 클래스 생성하고 테스트
+@SpringBootTest
+public class ServiceTest {
+	@Autowired
+	MemoService memoService;
+	
+	@Test
+	public void testInsert() {
+		MemoDTO dto = MemoDTO.builder().memoText("서비스 테스트").build();
+		
+		MemoDTO result = memoService.insertMemo(dto);
+		System.out.println(result);
+	}
+}
+
+4.Controller 계층 테스트
+=>컨트롤러 계층은 자바 코드로 테스트 가능하고 postman같은 프로그램을 이용해서 테스트 가능
+
+1)클라이언트의 요청 url에 따라 필요한 service를 호출하는 controller 클래스를 생성 controller.MemoController
+@RestController
+@RequiredArgsConstructor
+public class MemoController {
+	private final MemoService memoService;	//서비스를 주입받아야 함
+	
+	//데이터 삽입 요청
+	@PostMapping("/insert")
+	public ResponseEntity<MemoDTO> insertMemo(@RequestBody MemoDTO memoDTO){
+		
+		MemoDTO result = memoService.insertMemo(memoDTO);
+		
+		
+		return ResponseEntity.status(HttpStatus.OK).body(result);
+	}
+}
+
+2)서버를 실행하고 postman같은 프로그램을 이용해서 테스트
+http://localhost:8080/insert
+post body-raw-json
+{
+    "memoText":"컨트롤러 테스트"
+}
+
+3)Test코드를 이용해서 컨트롤러 테스트
+=>데이터(dto)를 json 문자열로 만들어주는 gson이라는 라이브러리의 의존성을 pom.xml 파일의 dependency 추가
+<dependency>
+    <groupId>com.google.code.gson</groupId>
+    <artifactId>gson</artifactId> <!--version은 안적어도 됨-->
+</dependency>
+
+=>Test를 위한 클래스를 만들고 테스트 수행
+@WebMvcTest(MemoController.class)
+public class ControllerTest {
+	@Autowired
+	private MockMvc mockMvc;
+	
+	//테스트에 필요한 인스턴스 생성
+	@MockBean
+	MemoService memoService;
+	
+	@Test
+	public void insertTest() {
+		MemoDTO memoDTO = MemoDTO.builder().memoText("코드로 컨트롤러 테스트").build();
+		
+		//DTO를 json문자열로 변환
+		Gson gson = new Gson();
+		String param = gson.toJson(memoDTO);
+		
+		try {
+			mockMvc.perform(
+					post("/insert")
+					.content(param)
+					.contentType(MediaType.APPLICATION_JSON))
+			.andExpect(status().isOk()).andDo(print());
+		} catch (Exception e) {
+			
+		}
+	}
+	
+}
+=>코드로 테스트를 해보면 실제 데이터를 삽입하지는 않음
+
+**Spring boot에서 view 사용
+1.스프링 부터에서 뷰를 생성하는 방법
+1)jsp - el과 jstl을 이욯해서 서버에서 생성한 데이터를 출력
+2)TemplateEngine - 서버에서 생성한 데이터를 출력하기위한 라이브러리
+=>Thymeleaf
+Velocity
+FreeMaker
+Mustache
+Groovy
+3)최근에는 rest api server 만 구축하고 react나 vue, angular 등을 이용해서 출력
+
+2.View실습을 위한 프로젝트를 생성
+=>start.spring.io에 접속해서 생성
+빌드 도구는 gradle
+자바 버젼은 11
+의존성은 Spring boot deb tools, lombok, spring web, thymeleaf
+generate 클릭 , 다운로드 후 압축 풀기
+인텔리제이 - 오픈 - 압축풀은 폴더(view-프로젝트이름) 선택
+
+3.jsp사용
+1)의존성 설정 - jstl, tomcat-embed-jasper
+
+build.gradel이 설정 파일임..
+
+=>build.gradelvkdlfdml dependencies안에 작성 후 Load를 다시 수행
+implementation 'javax.servlet:jstl'
+implementation 'org.apache.tomcat.embed:tomcat-embed-jasper'
+
+2)application.properties 파일에 jsp디렉토리 위치 설정 (resource폴더 안에 있음..)
+spring.mvc.view.prefix=/WEB-INF/views/
+spring.mvc.view.suffix=.jsp
+
+spring.thymeleaf.prefix=classpath:/templates/
+spring.thymeleaf.suffix=.html
+spring.thymeleaf.cache=false
+spring.thymeleaf.view-names=thymeleaf/*
+
+3)클라이언트의 요청 url과 대응한는 비즈니스 로직을 호출하는 컨트롤러를 생성 - controller.PageController
+@Controller
+public class PageController {
+    @GetMapping("/")
+    public String main(Model model){
+        Map<String, Object> map = new HashMap<>();
+        map.put("Language","Java 11");
+        map.put("Framework","Spring Boot, JQuery");
+        map.put("IDE","InteliJ");
+        map.put("Build Tool","Gradle");
+        map.put("WAS","Tomcat");
+        map.put("Database","MySQL");
+
+        //View에 데이터 전달
+        model.addAttribute("map",map);
+
+        List<String> list = new ArrayList<>();
+        list.add("Back End Developer");
+        list.add("Front End Developer");
+        list.add("Operator");
+        list.add("DBA");
+        list.add("Data Analysis");
+        list.add("Visualization Artist");
+        list.add("Big Data");
+        list.add("AI");
+        list.add("Cloud - DevOps(developer+operator), MLOps(머신러닝), CI/CD");
+        model.addAttribute("list",list);
+        
+        //map - dto와 비슷.. list - 여러개의 데이터..
+
+        //뷰 이름 리턴
+        return "main";
+    }
+}
+
+4)src/main 디렉토리 안에 webapp 디렉토리 생성 후 그 안에 WEB-INF 디렉토리 생성 후 그 안에 views디렉토리 생성 (application.properties 따름..)
+
+5)views 디렉토리 안에 main.jsp 파일 생성
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<!-- JSTL Core 기능 사용 설정 -->
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<!-- EL을 사용하기 위한 설정으로 없어도 되는 경우가 많지만 간혹 EL을 가지고 출력이 안되는 경우가 있어서 설정 -->
+<%@ page isELIgnored="false"%>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Spring Boot에서 JSP 출력</title>
+</head>
+<body>
+    <div>
+        <table>
+            <tr>
+                <th>언어</th>
+                <th>통합개발환경</th>
+                <th>프레임워크</th>
+            </tr>
+            <tr>
+                <td>${map.Language}</td>
+                <td>${map.IDE}</td>
+                <td>${map.Framework}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div>
+        <table>
+            <c:forEach items="${list}" var="job">
+                <tr>
+                    <td>${job}</td>
+                </tr>
+            </c:forEach>
+        </table>
+    </div>
+</body>
+
+6)애플리케이션을 실행하고 브라우저에서 localhost:8080으로 접속 (run ViewApplication)
+
+3.Thymeleaf
+1)Thymeleaf
+=>서버의 데이터를 출력하기 위한 템플릿엔진 중의 하나
+=>장점
+데이터 출력하는 방법이 jsp와 유사 : ${데이터}
+연산이나 포맷과 관련된 기능을 추가적인 작업없이 지원
+확장자를 html로 설정해서 출력하는 것이 가능 : 서버 사이트 랜더링을 하지 앟고 출력하는 것도 가능
+
+=>도큐먼트 : https://www.thymeleaf.org/
+
+2)Spring Boot Devtools
+=>Automatic restart : classpath에 있는 파일이 변경될 때마다 애플리케이션을 자동으로 재시작
+=>Live Reload : 정적 자원 수정 시 새로 고침 없이 바로 적용
+application.properties 파일에 추가 설정
+spring.devtools.livereload.enabled=true
+
+3)Thymeleaf 사용을 위해서 application.properties 파일을 수정 (기존 코드는 모두 주석처리..)
+spring.thymeleaf.cache=false
+spring.devtools.livereload.enabled=true
+
+4)Thymeleaf를 이용한 출력
+=>PageController 요청 처리 메서드를 추가
+    //요청을 처리하는 메서드가 아무것도 리턴하지 않으면 view 이름은 요청 url 이 됨
+    @GetMapping("/ex1")
+    public void ex1(){
+
+    }
+
+=>templates 디렉토리(resource 안에 있음..)에 ex1.html 파일을 만들고 작성
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>ex1</title>
+</head>
+<body>
+  <h1 th:text="${'Hello Thymeleaf'}"></h1> <!--상수 출력-->
+</body>
+</html>
+
+=> 실행 후 브라우져에 localhost:8080/ex1로 이동해서 확인
+
+5)데이터 출력 및 제어문 사용
+=>데이터 출력 : [[${데이터이름}]]
+=>반복문 : th:each = "변수이름:${목록이름}"
+=>분기문 : 
+th:if ~ unless
+th:switch 와 th:case
+삼항연산 사용 가능
+
+=>templates 디렉토리에 main.html파일을 생성하고 작성 
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>데이터 출력</title>
+</head>
+<body>
+<div>
+  <p>[[${map.Language}]]</p>
+
+  <ul th:each="job : ${list}">
+    <li>[[${job}]]</li>
+
+  </ul>
+</div>
+</body>
+</html>
+jsp가 할 후 있는 일 다 할 수 있음..(똑같음)
+=>서버를 실행하고 localhost:8080/을 확인
+
+6)DTO클래스를 생성해서 출력하기
+=>domain.SampleVO 클래스를 생성하고 작성
+@Data
+@Builder
+public class SampleVO {
+    private Long sno;
+    private String first;
+    private String last;
+    private LocalDateTime regTime;
+}
+
+=>PageController 클래스에 ex2요청을 처리하는 메서드를 만들고 작성
+@GetMapping("/ex2")
+public void ex2(Model model){
+    List<SampleVO> list = IntStream.rangeClosed(1, 20).asLongStream().mapToObj(i -> {
+        SampleVO vo = SampleVO.builder()
+                .sno(i)
+                .first("First.."+i)
+                .last("Last.."+i)
+                .regTime(LocalDateTime.now())
+                .build();
+        return vo;
+    }).collect(Collectors.toList());
+    model.addAttribute("list",list);
+}
+
+=>templates 디렉토리에 ex2.html파일을 생성하고 작성
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>ex2 데이터 출력</title>
+</head>
+<body>
+  <ul>
+   <li th:each="vo : ${list}">
+     [[${vo}]]
+   </li>
+  </ul>
+</body>
+</html>
+
+=>ex2.html을 수정해서 인덱스 출력
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>ex2 데이터 출력</title>
+</head>
+<body>
+  <ul>
+   <li th:each="vo, state : ${list}">
+<!--     [[${state.index}]] --- [[${vo}]]-->
+       <span th:if="${vo.sno % 3 == 0}">[[${vo.first}]]</span>
+       <span th:unless="${vo.sno % 3 == 0}">[[${vo.Last}]]</span>
+   </li>
+  </ul>
+</body>
+</html>
+
+=>ex2.html 파일을 수정해서 링크 출력
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>ex2 데이터 출력</title>
+</head>
+<body>
+  <ul>
+   <li th:each="vo, state : ${list}">
+<!--     [[${state.index}]] --- [[${vo}]]-->
+       <a th:href="@{/exview}">[[${vo.sno}]]</a>
+       <span th:if="${vo.sno % 3 == 0}">[[${vo.first}]]</span>
+       <span th:unless="${vo.sno % 3 == 0}">[[${vo.Last}]]</span>
+   </li>
+  </ul>
+</body>
+</html>
+스프링 부트와 AWS로 혼자 구현하는 웹 서비스
+
+7) 숫자나 날짜 포맷 설정
+=> 숫자의 경우는 #numbers를 이용해서 포맷을 설정
+=>날짜의 경우는 #temporals를 이용해서 포맷을 설정하는데 의존성을 추가해야 함
+
+=>build.gradle 파일의 dependencies에 날짜 포맷 관련 의존성 추가
+implementation group: 'org.thymeleaf.extras', name: 'thymeleaf-extras-java8time'
+
+=>/exformat 추가
+    @GetMapping({"/ex2", "/exformat"})
+    public void ex2(Model model){
+
+=>templates 디렉토리에 exformat.html파일을 생성하고 작성
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+  <ul>
+    <li th:each="vo :${list}">
+      [[${#numbers.formatInteger(vo.sno, 5)}]] <!--숫자 5자리-->
+      [[${#temporals.format(vo.regTime, 'yyyy/MM/dd')}]]
+      [[${#temporals.format(vo.regTime, 'yyyy/MM/dd hh:mm:ss')}]]
+    </li>
+  </ul>
+</body>
+</html>
