@@ -1,0 +1,836 @@
+**guestbook
+=>하나의 테이블을 생성하고 테이블에 대한 crud 작업을 수행하는 애플리케이션으로
+출력은 thymeleaf를 이용하고 디비 연동은 jpa(hibernate로 구현)를 사용
+
+1.개발 환경
+1)language : Java 11
+2)Framework : Spring Boot, Bootstrap
+3)database : MySQL 8.0
+4)IDE : InteliJ
+5)WAS : Tomcat
+6)Build Tool : Gradle
+
+//delete, put은 웹화면 있을 때 쓸 수 없음... rest api 일때만 사용..
+//application.properties 기본 설정 후 실행 한번 해보기 ㅊㅊ
+Model2, MVC 패턴 : 유지보수 편리하지만 어려움(코드 분리되기 때문에-역할별로 쪼개놓음)
+Model1 - jsp만
+Model2 - servlet,java,jsp
+테스트를 명확하게 해야 함(단위 테스트)
+
+2.프로젝트 생성
+1)기본 의존성
+Spring Boot Dev Tools
+ Lombok
+ Spring Web
+ Thymeleaf
+ Spring Data JPA
+ MySQL Driver
+
+2)Thymeleaf에서 날짜를 포맷에 맙게 출력하도록 해주는 라이브러리의 의존성을 pom.xml파일의 dependencies 추가 (build.gradle)
+implementation group: 'org.thymeleaf.extras', name: 'thymeleaf-extras-java8time'
+
+3)application.properties파일에 설정 추가
+#MySQL
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.datasource.url=jdbc:mysql://localhost:3306/webmail?serverTimezone=UTC
+spring.datasource.username=hong
+spring.datasource.password=a123456
+spring.jpa.properties.hibernate.show_sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.database-platform=org.hibernate.dialect.MySQL8Dialect
+logging.level.org.hibernate.type.descriptor.sql=trace
+#Live Reload
+spring.devtools.livereload.enabled=true
+spring.thymeleaf.cache=false
+
+4)프로젝트 실행
+=>콘솔 메시지를 확인해서 에러가 발생하면 데이터 베이스 접속 정보를 수정
+
+5)레이아웃 설정
+=>부트스트랩(반응형 웹을 쉽게 적용하기 위한 자바스크립트 라이브러리)을 적용한 SimpleSidebar 다운로드
+https://startbootstrap.com/template/simple-sidebar 
+
+=>다운로드 받은 파일을 압축 해제
+=>압축 해제한 3개의 디렉토리와 하나의 html파일을 resource/static 디렉토리에 복붙 (정적 파일 모아놓는 곳)
+=>templates디렉토리에 layout(기본 레이아웃 파일을 저장)디렉토리와 guestbook(화면에 보여지는 뷰를 저장)디렉토리를 생성
+
+=>기본 레이아웃을 작성한 basic.html을 layout디렉토리에 복붙
+
+3.메인 화면을 만들고 확인
+1)controller패키지에 GuestBookController 클래스를 만들고 요청 처리 메서드를 작성
+@Controller
+@Log4j2
+public class GuestBookController {
+    @GetMapping({"/", "/guestbook/list"})
+    public String list(){
+        log.info("list.............");
+        return "guestbook/list";
+    }
+}
+
+2)guestbook/list.html 파일 만들고 작성
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{/layout/basic:: setContent(~{this::content} )}">
+  <th:block th:fragment="content">
+    <h1>방명록</h1>
+  </th:block>
+</th:block>
+
+3)어플리케이션 실행하고 브라우저여 localhost:8080으로 접속해서 확인
+
+4.데이터의 생성날짜와 수정 날짜를 자동으로 설정하기위한 작업
+1)Spring Boot의 Application클래스의 상단에 jpa 감시를 위한 설정을 추가
+@SpringBootApplication
+@EnableJpaAuditing	//jap의 동작을 감시하겠다는 설정
+public class GuestbookApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(GuestbookApplication.class, args);
+	}
+
+}
+
+2)데이터의 생성 날짜와 수정 날짜를 갖는 상위 Entity클래스를 생성 - entity.BaseEntity
+@MappedSuperclass   //entity로 사용은 가능하지만 테이블을 생성하지는 않음
+//jpa를 감시하고 있다가 데이터를 수정
+@EntityListeners(value = {AuditingEntityListener.class})
+@Getter
+public abstract class BaseEntity {  //인스턴스 생성 불가능 하도록 abstract
+    @CreatedDate    //데이터 생성 날짜를 설정
+    @Column(name = "regdate", updatable = false)    //저장 시 이름은 regdate, 수정 불가
+    private LocalDateTime regDate;
+
+    @LastModifiedDate   //데이터의 마지막 수정 날짜를 설정
+    @Column(name ="moddate")
+    private LocalDateTime modDate;
+}
+
+3)방명록 테이블과 연동할 entity클래스 생성 - entity.GuestBook
+@Entity
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+public class GuestBook extends BaseEntity{	//상속 받아서 생성날짜, 수정날짜 컬럼 자동으로 생성됨
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO) //maria db같은 경우 적용 안될 때.. GenerationType.IDENTITY 써도 됨
+    private Long gno;
+
+    @Column(length = 100, nullable = false)
+    private String title;
+    @Column(length = 1500, nullable = false)
+    private String content;
+
+    @Column(length = 50, nullable = false)
+    private String writer;
+
+    //getter만 만들었기 때문에..
+    //수정을 위한 메서드 생성 (수정 가능한 것들..)
+    public void changeTitle(String title){
+        this.title = title;
+    }
+    public void changeContent(String content){
+        this.content = content;
+    }
+
+}
+
+4)애플리케이션을 실행해서 데이터베이스에 테이블이 만들어졌는지 확인	desc guest_book;
+=>mysql에서는 GuestBook으로 엔티티 설정 시 테이블 이름이 guest_book이 됨
+
+5)GuestBook Entity의 crud작업을 위한 Repository 인터페이스 생성 - persistence.GuestBookRepository
+
+1)Repository를 테스트 하기 위한 클래스를 src/test/java 디렉토리에 생성 - RepositoryTest
+@SpringBootTest
+public class RepositoryTest {
+    @Autowired
+    private GuestBookRepository guestBookRepository;
+}
+
+2)데이터 삽입 테스트
+@SpringBootTest
+public class RepositoryTest {
+    @Autowired
+    private GuestBookRepository guestBookRepository;
+
+    //데이터 삽입 테스트
+    @Test
+    public void insertTest(){
+        //300개의 가상의 데이터 삽입
+        IntStream.rangeClosed(1, 300).forEach(i -> {
+            GuestBook guestBook = GuestBook.builder()
+                    .title("Title..."+i)
+                    .content("Content..."+i)
+                    .writer("user"+(i%10))
+                    .build();
+            guestBookRepository.save(guestBook);
+        });
+    }
+}
+
+=>디비에서 확인 select * from guest_book;
+(auto_increment 1부터 시작하려면 옵션으로 따로 지정해야 함 ALTER TABLE test AUTO_INCREMENT=1;)
+
+=>테스트 클래스에 메서드 만들고 테스트
+//데이터 수정 테스트
+@Test
+public void updateTest(){
+    //데이터 1개 찾아오기
+    Optional<GuestBook> result = guestBookRepository.findById(103L);	//103번 gno해당 데이터 수정
+    //null이 가능한 자료형.. 이렇게 쓰면  NullPointException이 발생하지 않음.. 기본 자료형을 매핑해서 Optional
+    //stream api 참고.. 자바 1.8 이상
+    
+    //데이터가 존재하는 경우 수정
+    if (result.isPresent()){
+        GuestBook guestBook = result.get();
+        guestBook.changeTitle("제목 변경");
+        guestBook.changeContent("내용 수정");
+        guestBookRepository.save(guestBook);
+    }else{
+        System.out.println("데이터가 존재하지 않음");
+    }
+}
+
+4)데이터 삭제 테스트
+@Test
+public void deleteTest(){
+    //데이터 1개 찾아오기
+    Optional<GuestBook> result = guestBookRepository.findById(103L);
+
+    //데이터가 존재하는 경우 삭제
+    if (result.isPresent()){
+        guestBookRepository.delete(result.get());
+    }else{
+        System.out.println("데이터가 존재하지 않음");
+    }
+}
+
+=>디비에서 확인 select * from guest_book where gno=103;
+
+5)전체 데이터 가져오기 테스트
+@Test
+public void selectAllTest(){
+    List<GuestBook> list = guestBookRepository.findAll();
+    for(GuestBook guestBook : list){
+        System.out.println(guestBook);
+    }
+}
+
+6.Querydsl 사용을 위한 설정
+1)build.gradle 파일을 수정 25p
+buildscript {
+	ext {
+	queryDslVersion = "5.0.0"
+	}
+}
+plugins {
+	id 'org.springframework.boot' version '2.6.3'
+	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+	id 'java’'
+	id "com.ewerk.gradle.plugins.querydsl" version "1.0.10"
+}
+
+// QueryDSL - dependencies
+implementation "com.querydsl:querydsl-jpa:${queryDslVersion}"
+implementation "com.querydsl:querydsl-apt:${queryDslVersion}"
+
+def querydslDir = "$buildDir/generated/querydsl"
+querydsl {
+	jpa = true
+	querydslSourcesDir = querydslDir
+}
+sourceSets {
+	main.java.srcDir querydslDir
+}
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+	querydsl.extendsFrom compileClasspath
+}
+compileQuerydsl {
+	options.annotationProcessorPath = configurations.querydsl
+}
+tasks.named('test') {
+	useJUnitPlatform()
+}
+수정 후 로드..
+
+2)Gradle Task (우측 gradle 탭 열기..)
+Tasks - build - buile, jar 각각 더블클릭
+
+3)GuestBookRepository인터페이스의 선언 부분을 수정
+public interface GuestBookRepository extends JpaRepository<GuestBook, Long>, QuerydslPredicateExecutor<GuestBook> {	//QuerydslPredicateExecutor<엔티티이름>
+}
+
+4)테스트 클래스에서 title에 1이 포함된 데이터를 조회해서 출력하는 메서드를 생성하고 확인
+//데이터 querydsl을 이용한 조회
+@Test
+public void testQuery1(){
+    //gno의 내림차순 정렬 후 0페이지 10을 가져오기 위한 pageable 객체 생성
+    Pageable pageable = PageRequest.of(0, 10, Sort.by("gno").descending());
+    
+    //entity에 동적 쿼리를 수행할 수 잇는 도메인 클래스를 찾아오기
+    //querydsl 설정을 해야 하용 가능
+    //컬럼들을 속성으로 포함시켜 조건을 설정하는 것이 가능
+    QGuestBook qGuestBook = QGuestBook.guestBook;
+    String keyword = "1";   //검색어 생성
+    BooleanBuilder builder = new BooleanBuilder();  //검색을 적용하기 위한 Builder객체 생성
+
+    //조건 표현식 생성
+    BooleanExpression expression = qGuestBook.title.contains(keyword);  //qGuestBook.content.contains(keyword) - 내용에서 검색
+    builder.and(expression);    //검색 객체에 표현식을 추가
+    Page<GuestBook> result = guestBookRepository.findAll(builder, pageable);
+    result.stream().forEach(guestBook -> {
+        System.out.println(guestBook);
+    });
+}
+
+5)테스트 클래스에서 title이나 content에 1이 포함된 데이터를 조회해서 출력하는 메서드를 생성하고 확인
+ @Test
+public void testQuery2(){
+    //gno의 내림차순 정렬 후 0페이지 10을 가져오기 위한 pageable 객체 생성
+    Pageable pageable = PageRequest.of(0, 10, Sort.by("gno").descending());
+
+    //entity에 동적 쿼리를 수행할 수 잇는 도메인 클래스를 찾아오기
+    //querydsl 설정을 해야 하용 가능
+    //컬럼들을 속성으로 포함시켜 조건을 설정하는 것이 가능
+    QGuestBook qGuestBook = QGuestBook.guestBook;
+    String keyword = "1";   //검색어 생성
+    BooleanBuilder builder = new BooleanBuilder();  //검색을 적용하기 위한 Builder객체 생성
+
+    //조건 표현식 생성
+    BooleanExpression ex1 = qGuestBook.title.contains(keyword);
+    BooleanExpression ex2 = qGuestBook.content.contains(keyword);
+    
+    //2개의 표현식을 or로 연결
+    BooleanExpression expression = ex1.or(ex2);
+    
+    builder.and(expression);    //검색 객체에 표현식을 추가
+    Page<GuestBook> result = guestBookRepository.findAll(builder, pageable);
+    result.stream().forEach(guestBook -> {
+        System.out.println(guestBook);
+    });
+}
+
+7.Service Layer
+1)domain패키지에 GuestBookDTO 클래스를 생성
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
+public class GuestBookDTO {
+    private Long gno;
+    private String title;
+    private String content;
+    private String writer;
+    private LocalDateTime regDate;
+    private LocalDateTime modDate;
+}
+
+2)service 패키지에 GuestBookService 인터페이스를 생성하고 DTO와 Entity 사이의 변환을 위한 메서드를 작성
+public interface GuestBookService {
+    //DTO를 Entity로 변환해주는 메서드
+    default GuestBook dtoToEntity(GuestBookDTO dto){
+        GuestBook entity = GuestBook.builder()
+                .gno(dto.getGno())
+                .title(dto.getTitle())
+                .content(dto.getContent())
+                .writer(dto.getWriter())
+                .build();
+        return entity;
+    }
+    
+    //Entity를 DTO로 변환해주는 메서드
+    default GuestBookDTO entityToDto(GuestBook entity){
+        GuestBookDTO dto = GuestBookDTO.builder()
+                .gno(entity.getGno())
+                .title(entity.getTitle())
+                .content(entity.getContent())
+                .writer(entity.getWriter())
+                .regDate(entity.getRegDate())
+                .modDate(entity.getModDate())
+                .build();
+        return dto;
+    }
+
+}
+
+3)클라이언트 요청을 처리할 메서드를 구현한 Service클래스를 생성
+@RequiredArgsConstructor
+@Service
+@Log4j2
+public class GuestBookServiceImpl implements GuestBookService{
+    private final GuestBookRepository guestBookRepository;
+} //실무에선 repository가 여러개 일 수 있음.. 테이블 두개면 repository 두개..
+
+4)GuestBookService인터페이스에 데이터 삽입을 위한 메서드를 선언
+    //데이터 삽입을 위한 메서드
+    public Long register(GuestBookDTO dto);
+   
+ 5)GuestBookServiceImpl에 메서드 구현
+ @RequiredArgsConstructor
+@Service
+@Log4j2
+public class GuestBookServiceImpl implements GuestBookService{
+    private final GuestBookRepository guestBookRepository;
+    //데이터 삽입을 위한 메서드
+    @Override
+    public Long register(GuestBookDTO dto) {
+        log.info("데이터 삽입");
+        log.info(dto);
+
+        //Repository에서 사용하기 위한 dto를 entity로 변환
+        GuestBook entity = dtoToEntity(dto);
+
+        GuestBook result = guestBookRepository.save(entity);    //데이터 삽입
+
+        return result.getGno(); //삽입한 후 리턴받은 데이터의 gno 리턴
+    }
+}
+
+6)test 디렉토리에 service클래스 테스트를 위한 클래스를 생성하고 삽입 메서드 테스트
+@SpringBootTest
+public class ServiceTest {
+    @Autowired
+    private GuestBookService guestBookService;
+
+    @Test
+    public void insertTest(){
+        GuestBookDTO dto = GuestBookDTO.builder()
+                .title("삽입 테스트")
+                .content("content insert")
+                .writer("adam")
+                .build();
+        Long gno = guestBookService.register(dto);
+        System.out.println("삽입된 번호: "+ gno);
+    }
+}
+
+7)dto 목록 가져오기 구현
+=>데이터 목록 요청 시 전체 데이터가 아니라 페이지 단위로 요청하는 경우가 있는데 
+이 경우는 페이지 번호와 데이터 개수를 매개변수로 대입해줘야 함
+페이지 번호와 데이터 개수를 받아서 Pageable 인스턴스를 생성해주는 dto 생성 - domain.PageRequestDTO
+@Builder
+@AllArgsConstructor
+@Data
+public class PageRequestDTO {
+    private int page;   //페이지 번호
+    private int size;   //페이지 당 출력할 데이터 개수
+
+    public PageRequestDTO(){    //기본값을 설정하기 위한 생성자
+        this.page = 1;
+        this.size = 10;
+    }
+
+    //페이지 번호와 데이터 개수를 가지고 Pageable 객체를 만들어주는 메서드
+    public Pageable getPageable(Sort sort){
+        return PageRequest.of(page-1, size, sort);
+    }
+}
+
+=>목록 가져오기 요청을 했을 때 응답을 받기위한 dto클래스를 생성 - 다른곳에서 재사용을 하기 위해서 Generic 사용 - domain.PageResponseDTO
+//목록보기 응답을 위한 클래스
+@Data
+public class PageResponseDTO<DTO, EN> {
+
+    private List<DTO> dtoList;      //응답 목록을 저장할 List
+    
+    //Page 객체와 변환 함수를 넘겨받아서 dtoList를 만들어주는 메서드
+    public PageResponseDTO(Page<EN> result, Function<EN, DTO> fn){
+        //Page객체를 순회하면서 fn함수로 변환 후 List로 만들기
+        dtoList = result.stream().map(fn).collect(Collectors.toList());
+    }
+}	//이해하려면 람다나 스트림을 좀 공부해야 함...
+
+=>목록보기를 위한 메서드를 Service 인터페이스에 선언
+ //목록보기를 위한 메서드
+public PageResponseDTO<GuestBookDTO, GuestBook> getList(PageRequestDTO requestDTO);
+   
+=>목록보기를 위한 메서드를 ServiceImpl 에 구현
+@Override
+public PageResponseDTO<GuestBookDTO, GuestBook> getList(PageRequestDTO requestDTO) {
+
+    //페이지 단위 요청을 위한 Pageable 객체를 생성
+    Pageable pageable = requestDTO.getPageable(Sort.by("gno").descending());
+
+    //데이터베이스에서 조회
+    Page<GuestBook> result = guestBookRepository.findAll(pageable);
+
+    //Entity를 DTO로 변환하기 위한 객체 생성
+    Function<GuestBook, GuestBookDTO> fn = (entity -> entityToDto(entity));
+
+
+    //데이터 목록 생성
+    return new PageResponseDTO<>(result, fn);
+}
+
+=>Test클래스에서 테스트
+//목록보기 테스트
+@Test
+public void listTest(){
+    //페이지 번호 와 대이터 개수 설정
+    PageRequestDTO pageRequestDTO = PageRequestDTO.builder()
+            .page(1)
+            .size(10)
+            .build();
+    //메서드 호출
+    PageResponseDTO<GuestBookDTO, GuestBook> resultDTO = guestBookService.getList(pageRequestDTO);
+
+    //확인
+    for (GuestBookDTO dto: resultDTO.getDtoList()){
+        System.out.println(dto);
+    }
+}
+  
+=>페이지 번호 목록을 하단에 출력하고자 하는 경우에는 PageResponseDTO클래스에 추가
+//목록보기 응답을 위한 클래스
+@Data
+public class PageResponseDTO<DTO, EN> {
+
+    private List<DTO> dtoList;      //응답 목록을 저장할 List
+    
+    
+    private int totalPage;  //전체 페이지 개수
+    private int page; //현재 페이지 번호
+    private int size;   //한 페이지에 출력되는 데이터 개수
+    private int start, end;  //페이지 번호 목록의 시작 번호와 종료 번호
+    private boolean prev, next;  //이전과 다음 존재 여부
+    private List<Integer> pageList; //페이지 번호 목록
+    
+    //페이지 번호 목록을 만들어주는 메서드
+    private void makePageList(Pageable pageable){
+        //현재 페이지 번호와 페이지당 데이터 개수 가져오기
+        this.page = pageable.getPageNumber()+1; //jpa는 0부터 시작하므로..
+        this.size = pageable.getPageSize();
+        
+        //임시 종료 페이지 번호
+        //페이지 번호를 10개 출력할 것이라서 10으로 나누고 곱함
+        //페이지 번호 개수를 다르게 하고자 하면 숫자를 변경
+        int tempEnd = (int) (Math.ceil(page/10.0)) * 10;
+        
+        start = tempEnd - 9;    //시작 페이지 번호 (ex 10이면 1, 20이면 11)
+        prev = start > 1;   //이전 존재 여부
+        end = totalPage > tempEnd ? tempEnd : totalPage;    //종료 페이지 번호
+        next = totalPage > tempEnd;
+        
+        //페이지 번호 목록 만들기
+        pageList = IntStream.rangeClosed(start, end).boxed().collect(Collectors.toList());
+    }
+    
+    
+    //Page 객체와 변환 함수를 넘겨받아서 dtoList를 만들어주는 메서드
+    public PageResponseDTO(Page<EN> result, Function<EN, DTO> fn){
+        //Page객체를 순회하면서 fn함수로 변환 후 List로 만들기
+        dtoList = result.stream().map(fn).collect(Collectors.toList());
+
+        //페이지 번호 목록 만들기
+        totalPage = result.getTotalPages();
+        makePageList(result.getPageable());
+
+    }
+}
+
+=>이전에 만든 테스트 메서드를 수정해서 확인
+//목록보기 테스트
+@Test
+public void listTest(){
+    //페이지 번호 와 대이터 개수 설정
+    PageRequestDTO pageRequestDTO = PageRequestDTO.builder()
+            .page(1)
+            .size(10)
+            .build();
+    //메서드 호출
+    PageResponseDTO<GuestBookDTO, GuestBook> resultDTO = guestBookService.getList(pageRequestDTO);
+   //다른 페이지에서 쓸 때는 다른 클래스 이름 넣으주면 됨.. 재사용 가능하도록 generic 이용..
+
+    //확인
+    for (GuestBookDTO dto: resultDTO.getDtoList()){
+        System.out.println(dto);
+    }
+    
+    //이전 페이지번호와 다음페이지 존재 여부
+    System.out.println("이전 여부 : "+resultDTO.isPrev());
+    System.out.println("다음 여부 : "+resultDTO.isNext());
+    System.out.println("전체 페이지 개수 : "+resultDTO.getTotalPage());  //전체 페이지 개수
+    resultDTO.getPageList().forEach(i -> System.out.println(i));
+    
+}
+
+generic
+https://blog.naver.com/cjy2103/222647851451
+람다, 스트림
+
+8. Controller Layer
+1)목록 보기 구현
+=>Controller의 클래스의 요청 처리 메서드를 수정
+@Controller
+@Log4j2
+@RequiredArgsConstructor
+public class GuestBookController {
+    //서비스 객체 주입
+    private final GuestBookService guestBookService;
+
+    @GetMapping({"/"})
+    public String main(){
+        log.info("/");
+        return "redirect:/guestbook/list";
+    }
+
+    //void를 리턴하면 요청 url이 view의 이름이 됨
+    @GetMapping({"/guestbook/list"})
+    public void list(PageRequestDTO dto, Model model){
+        log.info("list.............");
+        //리눅스 서버는 앞에 / 쓰면 못 찾을 수 있음 (guestbook/list로 써야 함..)
+
+        //서비스 메서드 호출
+        //result의 dtoList에 dto의 List가 있고
+        //result의 pageList에 페이지 번호의 List가 존재
+        model.addAttribute("result",guestBookService.getList(dto));
+
+    }
+}
+
+=>list.html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{/layout/basic:: setContent(~{this::content} )}">
+  <th:block th:fragment="content">
+    <h1>방명록</h1>
+
+    <table class="table table-striped">
+      <thead>
+      <tr>
+        <th scope="col">글번호</th>
+        <th scope="col">제목</th>
+        <th scope="col">작성자</th>
+        <th scope="col">작성일</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="dto : ${result.dtoList}" >
+        <th scope="row">[[${dto.gno}]]</th>
+        <td>[[${dto.title}]]</td>
+        <td>[[${dto.writer}]]</td>
+        <td>[[${#temporals.format(dto.regDate, 'yyyy/MM/dd')}]]</td>
+      </tr>
+      </tbody>
+    </table>
+
+    <ul class="pagination h-100 justify-content-center align-items-center">
+      <li class="page-item " th:if="${result.prev}">
+        <a class="page-link" th:href="@{/guestbook/list(page= ${result.start -1})}"
+           tabindex="-1">이전</a>
+      </li>
+      <!--현제 페이지 번호와 출력하는 페이지 번호가 같으면 active-->
+      <li th:class=" 'page-item ' + ${result.page == page?'active':''} " th:each="page:${result.pageList}">
+        <a class="page-link" th:href="@{/guestbook/list(page = ${page})}">
+          [[${page}]]
+        </a>
+      </li>
+      <li class="page-item" th:if="${result.next}">
+        <a class="page-link" th:href="@{/guestbook/list(page= ${result.end +1})}">다음</a>
+      </li>
+    </ul>
+  </th:block>
+</th:block>
+
+2)등록 구현
+=>등록 링크를 눌러서 데이터 입력 화면으로 이동하고 데이터 입력 화면에서 데이터를 입력한 후 실제 등록
+링크를 눌러서 이동하는 것은 forwarding으로 처리하지만 삽입작업을 수행하고 결과 페이지로 이동할 때는 redirect로 이동함
+
+=>Controller클래스에 등록을 위한 메서드를 생성
+//등록 요청을 get방식으로 처리하는 메서드 - 등록 페이지로 이동
+@GetMapping("/guestbool/register")
+public void register(){
+    log.info("register GET...");
+   
+}
+
+//등록 요청을 POST방식으로 처리하는 메서드 - 등록 수행
+@PostMapping("/guestbook/register")
+public String register(GuestBookDTO dto, RedirectAttributes redirectAttributes){
+    log.info("register GET...");
+    
+    //등록 요청 처리
+    Long gno = guestBookService.register(dto);
+
+    //데이터 저장
+    redirectAttributes.addFlashAttribute("msg",gno+" 등록");
+    
+    //목록보기로 리다이렉트 (리다이렉트로 이동 시 모델 쓸 수 없음... 세션이나 이와 비슷한 RedirectAttributes이용해야 함..)
+    return "redirect:/guestbook/list";
+}
+
+**forward, redirect
+https://blog.naver.com/olea_olea/222688945081
+    
+=>list.html에 등록 링크를 추가하고 msg를 출력할 영역을 생성
+<span>
+  <a th:href="@{/guestbook/register}">
+  <button type="button" class="btn btn-outline-primary">방명록 작성</button>
+  </a>
+</span>
+<div th:if = "${msg != null}" th:text="${msg}"> </div>
+
+=>guestbook/register.html 생성
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{/layout/basic:: setContent(~{this::content} )}">
+    <th:block th:fragment="content">
+        <h1 class="mt-4">방명록 등록</h1>
+        <form th:action="@{/guestbook/register}" th:method="post">
+            <div class="form-group">
+                <label >Title</label>
+                <input type="text" class="form-control" name="title" placeholder="제목 입력">
+            </div>
+            <div class="form-group">
+                <label >Content</label>
+                <textarea class="form-control" rows="5" name="content"></textarea>
+            </div>
+            <div class="form-group">
+                <label >Writer</label>
+                <input type="text" class="form-control" name="writer" placeholder="작성자 입력">
+            </div>
+            <button type="submit" class="btn btn-primary">등록</button>
+        </form>
+    </th:block>
+</th:block>
+
+3)상세보기
+=>페이징 처리가 되어 있는 경우 상세보기로 이동할 때는 기본키의 값과 현재 페이지 번호를 같이 넘겨주는 것이 좋음
+상세보기를 하다가 목록보기를 눌렀을 때 첫번째 페이지로 이동하는 것보다는 상세보기를 수행했던 페이지로 이동하는 것이 ui 측면에서 졸기 때문에..
+
+=>list.html에서 제목부분을 출력하는 곳에 상세보기 링크를 추가
+<tr th:each="dto : ${result.dtoList}" >
+    <th scope="row">[[${dto.gno}]]</th>
+    <td>
+      <a th:href="@{/guestbook/read(gno = ${dto.gno},page=${result.page})}">[[${dto.title}]] </a>
+    </td>
+    <td>[[${dto.writer}]]</td>
+    <td>[[${#temporals.format(dto.regDate, 'yyyy/MM/dd')}]]</td>
+</tr>
+
+=>Service 인터페이스에 상세보기 처리를 위한 메서드를 선언
+//상세보기를 위한 메서드
+public GuestBookDTO read(Long gno);
+
+=>ServiceImpl클래스에 상세보기 처리 메서드를 구현
+@Override
+public GuestBookDTO read(Long gno) {
+    Optional<GuestBook> guestBook = guestBookRepository.findById(gno);
+
+    return guestBook.isPresent() ? entityToDto(guestBook.get()) : null;
+}
+
+=>컨트롤러 클래스에 상세보기 처리 메서드를 구현
+ //상세보기 요청 처리
+@GetMapping("/guestbook/read")
+//ModelAttribute : 매개변수를 결과 페이지에 넘겨줄 때 사용 (어떤 처리 안하고 바로 넘겨줄 때..
+public void read(long gno, @ModelAttribute("requestDTO") PageRequestDTO requestDTO, Model model){
+    GuestBookDTO dto = guestBookService.read(gno);
+    model.addAttribute("dto",dto);
+}
+    
+=>tmplates/guestbook 디렉토리에 read.html파일을 생성해서 데이터를 출력
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{/layout/basic:: setContent(~{this::content} )}">
+  <th:block th:fragment="content">
+    <h1 class="mt-4">방명록 상세보기</h1>
+
+    <div class="form-group">
+      <label >Gno</label>
+      <input type="text" class="form-control" name="gno" th:value="${dto.gno}" readonly >
+    </div>
+    <div class="form-group">
+      <label>제목</label>
+      <input type="text" class="form-control" name="title" th:value="${dto.title}" readonly >
+    </div>
+    <div class="form-group">
+      <label >내용</label>
+      <textarea class="form-control" rows="5" name="content"
+                readonly>[[${dto.content}]]</textarea><!--textarea는 작성 시 줄바꿈하면 공백 들어감 주의-->
+    </div>
+
+    <div class="form-group">
+      <label >작성자</label>
+      <input type="text" class="form-control" name="writer" th:value="${dto.writer}"
+             readonly>
+    </div>
+    <div class="form-group">
+      <label >작성일</label>
+      <input type="text" class="form-control" name="regDate"
+             th:value="${#temporals.format(dto.regDate, 'yyyy/MM/dd HH:mm:ss')}" readonly>
+    </div>
+    <div class="form-group">
+      <label >수정일</label>
+      <input type="text" class="form-control" name="modDate"
+             th:value="${#temporals.format(dto.modDate, 'yyyy/MM/dd HH:mm:ss')}" readonly>
+    </div>
+    <a th:href="@{/guestbook/list(page=${requestDTO.page})}"><button type="button" class="btn btn-info">목록보기</button></a>
+    <!--1페이지 아닌 보고있던 페이지로 이동-->
+  </th:block>
+</th:block>
+
+4)검색 구현
+=>PageRequestDTO에 검색 타입과 키워드를 저장하기 위한 속성을 추가
+private String type;    //검색 타입
+private String keyword; //검색어
+
+=>ServiceImpl에 검색 조건을 만드는 메서드를 추가
+//검색 조건을 만들어주는 메서드
+private BooleanBuilder getSearch(PageRequestDTO requestDTO){
+
+    String type = requestDTO.getType(); //검색 항목 가져오기
+    String keyword = requestDTO.getKeyword(); //검색어 가져오기
+
+    BooleanBuilder booleanBuilder = new BooleanBuilder();
+    QGuestBook qGuestBook = QGuestBook.guestBook;   //querydsl은 GuestBook아니라 QGuestBook써야함..
+
+    //검색 조건이 없는 경우
+    if(type == null || type.trim().length() == 0){
+        return booleanBuilder;
+    }
+
+    //검색 조건이 있는 경우
+    BooleanBuilder conditionBuilder = new BooleanBuilder();
+    if (type.contains("t")){
+        conditionBuilder.or(qGuestBook.title.contains(keyword));
+    }
+    if (type.contains("c")){
+        conditionBuilder.or(qGuestBook.content.contains(keyword));
+    }
+    if (type.contains("w")){
+        conditionBuilder.or(qGuestBook.writer.contains(keyword));
+    }
+
+    booleanBuilder.and(conditionBuilder);   //앞에 만들었던 조건 합침..
+    return booleanBuilder;
+
+}
+
+=>ServiceImpl에 목록 가져오는 메서드 수정
+@Override
+public PageResponseDTO<GuestBookDTO, GuestBook> getList(PageRequestDTO requestDTO) {
+
+    //페이지 단위 요청을 위한 Pageable 객체를 생성
+    Pageable pageable = requestDTO.getPageable(Sort.by("gno").descending());
+
+    //데이터베이스에서 조회
+    //Page<GuestBook> result = guestBookRepository.findAll(pageable);
+
+    BooleanBuilder booleanBuilder = getSearch(requestDTO);
+    Page<GuestBook> result = guestBookRepository.findAll(booleanBuilder, pageable);	//booleanBuilder 파라미터 추가함..
+
+
+    //Entity를 DTO로 변환하기 위한 객체 생성
+    Function<GuestBook, GuestBookDTO> fn = (entity -> entityToDto(entity));
+
+
+    //데이터 목록 생성
+    return new PageResponseDTO<>(result, fn);
+}
