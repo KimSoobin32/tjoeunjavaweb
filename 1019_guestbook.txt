@@ -811,7 +811,7 @@ private BooleanBuilder getSearch(PageRequestDTO requestDTO){
     booleanBuilder.and(conditionBuilder);   //앞에 만들었던 조건 합침..
     return booleanBuilder;
 
-}
+}	//if 형태로 비교하고(else if 쓰면 안됨) contains 사용해야 제목+내용 - tw.. 같은 거 가능 함..
 
 =>ServiceImpl에 목록 가져오는 메서드 수정
 @Override
