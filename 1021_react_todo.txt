@@ -1,0 +1,738 @@
+5.React 프로젝트 연습
+1)하나의 컴포넌트를 만들고 출력
+=>src 디렉토리에 ToDo.jsx 파일을 생성하고 작성
+
+-----
+확장자로 구분
+js -> jsx - react
+jsp 일부분 jsf (fragment)
+
+Java
+.net (c#)
+전부 메모리에
+import의 개념이 없음 (이름을 줄여쓰기 위한 것만..)
+import java.util.*;
+jre가 jdk 설치할 때 클래스들 가지고 있음..
+
+js
+python
+db의 from 절
+필요한걸 그때그때 가져옴
+from 하지 않으면 쓸 수 없음
+import "a.js";
+import numpy as np;
+
+둘을 구분해야 함..
+
+타입 스크립트
+
+render : 화면에 보여지는 것
+-----
+import React from "react";
+
+class ToDo extends React.Component{
+    render(){
+        return(
+            <div className="ToDo">
+                <input type="checkbox" id="todo0" name="todo0" value="todo0"></input>
+                <label for="todo0">컴포넌트 만들기</label>
+            </div>
+        )
+    }
+}
+
+export default ToDo;
+
+=>App.js 에서 ToDo.jsx 가져온 후 브라우저에서 확인
+import './App.css';
+
+import React from 'react';
+import ToDo from './ToDo';
+
+function App() {
+  return (
+    <div className="App">
+      <ToDo/>
+    </div>
+  );
+}
+
+export default App;
+
+=>실행을 하고 브라우저를 확인 localhost:3000
+
+2)Props와 State : 컴포넌트 간의 데이터 전달에 사용되는 속성
+=>ToDo.jsx파일을 수정
+import React from "react";
+
+class ToDo extends React.Component{
+    constructor(props){
+        super(props);
+        this.state = {item:props.item}; //{데이터 이름 : 실제 데이터} json 형식..
+    }
+
+    render(){
+        return(
+            <div className="ToDo">
+                <input type="checkbox" id={this.state.item.id} name={this.state.item.id} checked={this.state.item.done}/>
+                <label id={this.state.item.id}>{this.state.item.title}</label>
+            </div>
+        )
+    }
+}
+
+export default ToDo;
+
+=>App.js 수정해서 ToDo에게 데이터 전달
+import './App.css';
+
+import React from 'react';
+import ToDo from './ToDo';
+
+class App extends React.Component{
+  constructor(props){ //생성자
+    super(props);
+    this.state = {item:{id:0, title:"Hello React", done:true}};
+  }
+
+  render(){
+    return (
+      <div className="App">
+        <ToDo item={this.state.item}/>
+      </div>
+    );
+  }
+}
+
+export default App;
+
+=>실행 후 브라우저를 확인
+
+3)App.js파일에서 배열을 만들어서 전달
+=>App.js파일을 수정
+import './App.css';
+
+import React from 'react';
+import ToDo from './ToDo';
+
+class App extends React.Component{
+  constructor(props){ //생성자
+    super(props);
+    //this.state = {item:{id:0, title:"Hello React", done:true}}; //하나짜리
+    this.state = {items:[{id:0, title:"java", done:false}, {id:1, title:"python", done:true}]};
+  }
+
+  render() { 
+    var todoItems = this.state.items.map((item, idx) => (
+      <ToDo item={item} key={item.id} /> 
+    ));
+
+    return (
+      <div className="App">
+        {todoItems}
+      </div>
+    );
+  }
+}
+  
+export default App;
+-----
+
+data 구분 시
+- Scala data : 데이터가 1개일 때, 소문자로 씀(int, double,... null저장 못함).. ex 3
+
+- Vector data : 데이터가 0개 이상
+dto 형태 - map은 여기에 해당 됨 .. 데이터를 이름으로 구분 (데이터 전달 시 dto / map 권장) ex count 3  ..뭐가 3이냐 ..데이터 하나일때도 이걸 ㅊㅊ
+list 형태 - array .. 데이터를 인덱스로 구분
+
+
+-----
+
+4)ToDo.jsx 파일 수정 - material ui 이용
+=>설치 : 터미널에서 수행
+npm install --legacy-peer-deps @material-ui/core
+npm install --legacy-peer-deps @material-ui/icons
+
+import React from "react";
+
+import{
+    ListItem,
+    ListItemText,
+    InputBase,
+    Checkbox
+} from "@material-ui/core"
+
+class ToDo extends React.Component{
+
+    constructor(props){
+        super(props);
+        this.state = {item:props.item}; //{데이터 이름 : 실제 데이터} json 형식..
+    }
+
+    render(){
+        //데이터 찾아오기
+        const item = this.state.item;
+        return(
+            <ListItem>
+                <Checkbox checked={item.done}/>
+                <ListItemText>
+                    <InputBase 
+                        inputProps={{"aria-label":"naked"}}
+                        type="text"
+                        id={item.id} name={item.id} value={item.title}
+                        multiline={true} fullWidth={true} />
+                </ListItemText>
+            </ListItem>
+        )
+    }
+}
+
+export default ToDo;
+
+=>App.js 수정
+자바스크립트는 bool있는데 다른 종류의 데이터도 bool과 연산 가능
+숫자 0이나 null은 false로 간주하고 데이터는 true로 간주
+bool과 다른 종류의 데이터를 && 이나 ||로 연산하면 연산의 결과는 연산을 수행한 데이터 타입으로 나오거나 false가 나옴
+0 && 3 => false
+true && 3 => 3
+
+if(조건) { 내용 리턴 } else { 내용 리턴 } 대신
+var 변수 = 조건 && 내용 을 많이 씀..
+
+import './App.css';
+
+import React from 'react';
+import ToDo from './ToDo';
+import {Paper, List} from "@material-ui/core";
+
+class App extends React.Component{
+  constructor(props){ //생성자
+    super(props);
+    //this.state = {item:{id:0, title:"Hello React", done:true}}; //하나짜리
+    this.state = {items:[{id:0, title:"java", done:false}, {id:1, title:"python", done:true}]};
+  }
+
+  render() { 
+    // var todoItems = this.state.items.map((item, idx) => (
+    //   <ToDo item={item} key={item.id} /> 
+    // ));
+    var todoItems = this.state.items.length > 0 
+    && (<Paper style={{margin:16}}>
+        <List>
+          {this.state.items.map((item, idx) => (
+            <ToDo item={item} />
+          ))}
+        </List>
+      </Paper>)
+
+    return (
+      <div className="App">
+        {todoItems}
+      </div>
+    );
+  }
+}
+  
+export default App;
+
+5)데이터 삽입 화면을 생성해서 데이터 목록 화면 위에 추가
+=>데이터 삽입을 위한 AddToDo.jsx파일을 생성하고 작성
+import { TextField } from "@material-ui/core";
+import React from "react";
+import {TextField, Paper, Button, Grid} from "@material-ui/core";
+
+class AddToDo extends React.Component{
+    constructor(props){
+        super(props);
+        this.state = {item:{title:""}};
+    }//생성자에선 state 초기화를 주로 함
+
+    //Paper : 영역, Grid : 박스
+    //xs={1} md={1} 영역 크기 (전체 12 중 1)
+    render(){
+        return(
+            <Paper style={{margin:16, padding:16}}>
+                <Grid container>
+                    <Grid xs={11} md={11} item style={{paddingRight:16}}>
+                        <TextField placeholder="Add ToDo Here" fullWidth/>
+                    </Grid>
+                    <Grid xs={1} md={1} item style={{paddingRight:16}}>
+                        <Button fullWidth color="secondary" variant="outlined">+</Button>
+                    </Grid>
+                </Grid>           
+            </Paper>
+        )
+    }
+
+}
+export default AddToDo; //클래스 이름.. 다른곳에서 쓰려면 내보내줘야 함
+
+=>App.js에서 AddToDo 출력
+import './App.css';
+
+import React from 'react';
+import ToDo from './ToDo';
+import AddToDo from './AddToDo';
+import {Paper, List, Container} from "@material-ui/core"; //Container : 여러개 출력하고 싶을 때
+
+class App extends React.Component{
+  constructor(props){ //생성자
+    super(props);
+    this.state = {items:[{id:0, title:"java", done:false}, {id:1, title:"python", done:true}]};
+  }
+
+  render() { 
+    var todoItems = this.state.items.length > 0 
+    && (<Paper style={{margin:16}}>
+        <List>
+          {this.state.items.map((item, idx) => (
+            <ToDo item={item} />
+          ))}
+        </List>
+      </Paper>)
+
+    return (
+      <div className="App">
+        <Container maxWidth="md">
+          <AddToDo/>
+          <div className="ToDoList">
+            {todoItems}
+          </div>
+        </Container>
+        
+      </div>
+    );
+  }
+}  
+export default App;
+
+@Component CDD
+
+데이터 삽입,수정, 삭제는 App.js에서 수행..
+
+6)데이터 삽입 이벤트 처리
+1)App.js 파일 수정
+
+
+서버 외부 -> 로컬 로 data 전송 시 Data clone 한 후 편집
+ex 이렇게 만들어진 대표적인 예 - 장바구니
+리액트의 원칙..
+기본속성에서는 데이터 추가 수정 불가.. 복제본에서 무조건
+  //데이터 삽입을 위한 함수 = function add(item){}
+  add = (item) => {
+
+    const thisItems = this.state.items;     //전체 데이터 목록을 thisItems에 대입 (원본 데이터에 작업하면 안됨..) 원본 데이터를 복사본에 넣고.. 복사본에 작업 후 다시 대입..
+    item.id = "ID-" + thisItems.length;     //삽입할 ID를 생성
+    item.done = false;  //done값을 생성
+    thisItems.push(item); //데이터 삽입
+    this.setState({items:thisItems}); //삽입한 결과를 state에 저장
+    console.log("items: ", this.state.items);
+  };
+
+   <AddToDo add={this.add}/> -- add라는 이름으로 add함수 넘김
+   
+2)AddToDo.jsx에서 버튼과 넘어온 함수를 연결
+import React from "react";
+import {TextField, Paper, Button, Grid} from "@material-ui/core";
+
+class AddToDo extends React.Component{
+    constructor(props){
+        super(props);
+        this.state = {item:{title:""}};
+        this.add = props.add;   //App.js에서 넘겨준 add값을 읽어서 대입
+    }//생성자에선 state 초기화를 주로 함
+
+    //이벤트 처리를 위한 함수
+    onInputChange = (e) => { //입력 내용이 변경될 때 호출될 함수, 변경 내용을 데이터에 적용
+        const thisItem = this.state.item;
+        thisItem.title = e.target.value;
+        this.setState({item:thisItem});
+        console.log(this.item);
+    }
+
+    //버튼 눌렀을 때 호출될 함수
+    onButtonClick = (e) => {
+        this.add(this.state.item);
+        this.setState({item:{title:""}});    
+    };
+
+    //Enter를 누를 때 호출될 함수
+    enterKeyEventHandler = (e) => {
+        if(e.key === "Enter"){
+            this.onButtonClick();
+        }
+    };
+
+    //Paper : 영역, Grid : 박스
+    //xs={1} md={1} 영역 크기 (전체 12 중 1)
+    render(){
+        return(
+            <Paper style={{margin:16, padding:16}}>
+                <Grid container>
+                    <Grid xs={11} md={11} item style={{paddingRight:16}}>
+                        <TextField placeholder="Add ToDo Here" fullWidth
+                            onChange={this.onInputChange}
+                            value={this.state.item.title}
+                            onKeyPress={this.enterKeyEventHandler}/>
+                    </Grid>
+                    <Grid xs={1} md={1} item style={{paddingRight:16}}>
+                        <Button fullWidth color="secondary" variant="outlined" onClick={this.onButtonClick}>+</Button>
+                    </Grid>
+                </Grid>           
+            </Paper>
+        )
+    }
+
+}
+
+export default AddToDo; //클래스 이름.. 다른곳에서 쓰려면 내보내줘야 함
+
+=>삭제
+import React from "react";
+
+import{
+    ListItem,
+    ListItemText,
+    InputBase,
+    Checkbox,
+    ListItemSecondaryAction,
+    IconButton
+} from "@material-ui/core"
+
+import DeleteOutlined from "@material-ui/icons/DeleteOutlined";
+
+class ToDo extends React.Component{
+
+    constructor(props){
+        super(props);
+        this.state = {item:props.item}; //{데이터 이름 : 실제 데이터} json 형식..
+    }
+
+    render(){
+        //데이터 찾아오기
+        const item = this.state.item;
+        return(
+            <ListItem>
+                <Checkbox checked={item.done}/>
+                <ListItemText>
+                    <InputBase 
+                        inputProps={{"aria-label":"naked"}}
+                        type="text"
+                        id={item.id} name={item.id} value={item.title}
+                        multiline={true} fullWidth={true} />
+                </ListItemText>
+                <ListItemSecondaryAction>
+                    <IconButton aria-label="Delete Todo">
+                        <DeleteOutlined/>
+                    </IconButton>
+                </ListItemSecondaryAction>
+            </ListItem>
+        )
+    }
+}
+
+export default ToDo;
+
+=>app.js에 삭제를 위한 함수 넘겨줌
+delete = (item) => {
+    const thisItems = this.state.items;  //전체 데이터 복사해옴
+    const newItems = thisItems.filter(
+      (e) => e.id !== item.id
+    );  //전체 데이터에서 매개변수에 넘어온 id에 해당하는 데이터를 제외하고 데이터를 추출 - 삭제
+    this.setState({ items: newItems }); //수정된 데이터를 전체 데이터에 반영
+  }
+  
+  <Paper style={{ margin: 16 }}>
+        <List>
+          {this.state.items.map((item, idx) => (
+            <ToDo item={item} key={item.id} delete={this.delete}/>
+          ))}
+        </List>
+      </Paper>
+      
+=>ToDo.jsx파일에서 삭제 이벤트 연결
+constructor(props){
+        super(props);
+        this.state = {item:props.item}; //{데이터 이름 : 실제 데이터} json 형식..
+        this.delete = props.delete;
+    }
+
+    //삭제 처리 함수
+    deleteEventHandler = (e) => {
+        this.delete(this.state.item);
+    }
+    
+<IconButton aria-label="Delete Todo" onClick={this.deleteEventHandler}>
+  <DeleteOutlined/>
+</IconButton>
+
+8)코드 수정
+=>App.js에서 샘플 데이터 삭제
+class App extends React.Component{ 
+  constructor(props) {
+    super(props);
+    this.state = {items: []}; 
+  }
+  
+=>ToDo.jsx파일에서 기본적으로 데이터는 읽기 전용으로 출력되도록 하고 아이템의 title을 클릭하면 수정 상태로 변경되었다가
+enter를 누르면 다시 읽기 전용으로 변경되도록 하고 체크박스를 클릭 시 done의 값이 반전되도록 작성
+constructor(props){
+        super(props);
+        this.state = {item:props.item, readOnly: true}; //{데이터 이름 : 실제 데이터} json 형식.., 속성 하나 만들어 줌
+        this.delete = props.delete;
+    }
+ //title을 클릭하면 읽기 전용이 해제되는 함수
+    offReadOnlyMode = (e) => {
+        this.setState({readOnly:false});
+    }
+
+    //Enter를 누르면 읽기 전용이 설정되는 함수
+    enterKeyEventHandler = (e) => {
+        if(e.key === "Enter"){
+            this.setState({readOnly:true});
+        }
+    }
+
+    //텍스트필드에서 데이터를 수정하면 반영되는 함수
+    editEventHandler = (e) => {
+        const thisItem = this.state.item;
+        thisItem.title = e.target.value;
+        this.setState({item:thisItem});
+    }
+
+    //체크박스 클릭 이벤트 처리를 위한 함수
+    checkboxEventHandler = (e) => {
+        const thisItem = this.state.item;
+        thisItem.done = !thisItem.done;
+        this.setState({item:thisItem});
+    }
+<ListItemText>
+	<InputBase 
+        inputProps={{"aria-label":"naked", readOnly:this.state.readOnly}}   //입력 모드 설정 가능
+        type="text"
+        id={item.id} name={item.id} value={item.title}
+        multiline={true} fullWidth={true}
+        onClick={this.offReadOnlyMode} onChange={this.editEventHandler} onKeyPress={this.editEventHandler} />
+</ListItemText>
+
+6.CORS (Cross-Origin Resource Sharing)
+1)SOP (Same-Origin Policy)
+=>동일 출처 정책
+=>동일한 출처에서만 리소스를 공유하도록 하는 정책
+=>웹에서는 보안때문에 외부 출처의 데이터를 가져오지 못하도록 함
+
+2)CORS
+=>처음 리소스를 제공한 도메인이 현재 요청하려는 도메인과 다르더라도 요청을 허락해주는 웹의 보안 방침 - 서버에서 설정
+
+3)Proxy
+=>내부에서 외부에 데이터를 요청할 때 동작하는 소프트웨어나 하드웨어
+=>웹에서는 sop때문에 외부의 데이터를 가져올 수 없는 데 proxy를 이용해서 웹에서는 내부서버에 데이터를 요청하고
+내부 서버가 외부 서버에 데이터를 요청해서 가져온 후 웹에 데이터를 전송하는 형태로 구현해서 외부의 데이터를 사용할 수 있도록 함 - 클라이언트에서 설정
+
+리액트에는 프록시 기능 사용할 수 있도록 설정되어 있음..
+Spring에서 클래스 생성.. 스프링은 이 클래스를 상속받은 스프링이 클래스를 다시 만들어서 자기(스프링)가 생성한 클래스를 이용. => 프록시패턴
+
+외부에서 들어오는거 막는거 : 방화벽
+외부로 못 나가는거 : 프록시
+
+서버 내가 만들었으면 둘다(cors, proxy) 가능, 아니면 프록시.. 둘중 하나 설정..
+               
+7. 프론트엔드와 백엔드 연결
+1)백엔드 애플리케이션을 실행하고 확인
+2)프론트엔드 애플리케이션의 app.js의 클래스 안에 컴포넌트가 로드되면 호출되는 콜백 메서드 작성
+  //컴포턴트가 로드되면 호출되는 함수
+  componentDidMount(){	//화면이 만들어지고 나면 실행되는 함수 -  초기 설정 작업.. 수명주기 함수..
+    //요청 옵션 생성
+    const requestoptions = {
+      method:"GET",
+      headers:{"Content-Type" : "application/json"},
+    };
+
+    //데이터 요청 전송
+    fetch("http://localhost:8080/todo", requestoptions)
+    .then((response) => response.json())	//then : 이 작업하고 리턴한거를 다음작업에..
+    .then((response) => {	//자바스크립트 객체로 변환됨
+      this.setState({
+        items:response.data
+      })
+    }, (error) => {
+      this.setState({error});
+    })
+  };
+
+ 3)실행 후 검사창에서 console확인 - 프로젝트가 클라이언트와 서버 나누어질 경우..
+브라우저 확인하면 자바스크립트 에러가 밸생해서 데이터를 가져오지 못함 origin ...
+=>CORS설정이 되지 않아서 데이터를 가져오지 못한다는 에러
+
+4)백엔드 애플리케이션에 cors설정을 위한 클래스를 추가하고 작성 - config.WebMvcConfig
+@Configuration	//프로젝트 전체에 적용
+public class WebMvcConfig implements WebMvcConfigurer {
+    private final long MAX_AGE_SECS = 3600; //최대 얼마동안 연결 시도
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry){
+        //허락할 요청(모든 경로의 요청에 대해) ex "/todo", "/todo/insert" ...
+        registry.addMapping("/**")
+                //허락할 클라이언트 url을 등록
+                .allowedOrigins("http://localhost:3000")
+                //허락할 요청 방식 설정
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")//행전체 수정put, 행 일부 수정petch
+                //허락할 헤더 설정
+                .allowedHeaders("*")//어떤 헤더 오던 허락
+                //인증 설정
+                .allowCredentials(true)
+                //최대 접속 시간
+                .maxAge(MAX_AGE_SECS);       //없으면 무한 대기상태 됨..
+    }
+}
+
+
+5)서버를 재실행하고 웹브라우저에서 다시 확인 - localhost:3000 에서 cors사라짐
+
+6)클라이언트 프로젝트에 백엔드의 url을 저장할 환경 설정 파일을 추가 : src/app-config.js
+let backendHost;
+
+const hostname = window && window.location && window.location.hostname;
+
+if(hostname === "localhost"){
+    backendHost = "http://localhost:8080";
+}
+//port 80이면 "http://localhost"
+export const API_BASE_URL = `${backendHost}`;   //백틱 : 자바스크립트에서 문자열 만들 때 사용 (문자열 템플릿)
+
+7)백엔드 데이터를 가져오는 함수를 별도의 파일에서 작성 : src/service/ApiService.js
+import { API_BASE_URL } from "../app-config";	//디렉토리 하나 올라가야 되므로 ../ , {}할때는 이름 하나만 가져올 때.. 전부 가져올때는 {}안 씀
+
+//api: 요청 이름, method: 요청 방식, reques : 파라미터
+export function call(api, method, request){
+    //요청 옵션 생성
+    let options = {
+        headers: new Headers({
+            "Content-Type" : "application/json",
+        }),
+        url : API_BASE_URL + api,
+        method : method,
+
+    };
+    //파라미터를 json객체로 변환 .. 서버에 보낼 때는 json으로 보내야 함(파싱 :JSON.parse / json만들때는 JSON.stringify)
+    if(request){
+        options.body = JSON.stringify(request);
+    }
+    //요청을 전송
+    return fetch(options.url, options)
+    .then((response) => response.json()
+    .then((json) => {
+        if(!response.ok){
+            return Promise.reject(json);
+        }
+        return json;
+    })
+    );
+}
+
+8)App.js의 내용을 수정해서 삽입 삭제 가져오기 적용
+
+import {call} from "./service/ApiService";
+//컴포턴트가 로드되면 호출되는 함수
+  componentDidMount() {
+    call("/todo", "GET", null).then((response) =>	//response : 아무이름이나 써도 되나 예약어(자동완성되는 글자)는 쓰면 안됨
+      this.setState({ items: response.data })
+    );
+  }
+
+  //데이터 삽입을 위한 함수
+  add = (item) => {
+    call("/todo", "POST", item).then((response) =>
+      this.setState({ items: response.data })
+    );
+  };
+
+
+  delete = (item) => {
+    call("/todo", "DELETE", item).then((response) =>
+      this.setState({ items: response.data })
+    );
+  };
+
+ 7)데이터 수정 적용
+ =>App.js파일의 
+   update = (item) => {
+    call("/todo", "PUT", item).then((response) =>
+      this.setState({ items: response.data })
+    );
+  };
+ <Paper style={{ margin: 16 }}>
+    <List>
+      {this.state.items.map((item, idx) => (
+        <ToDo item={item} key={item.id} delete={this.delete} update={this.update}/>
+      ))}
+    </List>
+</Paper>
+
+=>Todo.jsx수정
+constructor(props){
+        super(props);
+        this.state = {item:props.item, readOnly: true}; //{데이터 이름 : 실제 데이터} json 형식.., 속성 하나 만들어 줌
+        this.delete = props.delete;
+        this.update = props.update;
+    }
+ //Enter를 누르면 읽기 전용이 설정되는 함수
+enterKeyEventHandler = (e) => {
+    if(e.key === "Enter"){
+    this.setState({readOnly:true});
+    this.update(this.state.item);
+}
+}
+//체크박스 클릭 이벤트 처리를 위한 함수
+checkboxEventHandler = (e) => {
+    const thisItem = this.state.item;
+    thisItem.done = !thisItem.done;
+    this.setState({item:thisItem});
+    this.update(this.state.item);
+}
+
+토큰 - 해시기법 (아이디와 비밀번호 원본 찾아낼 수 있으나 현실적으로 불가능)
+json web token - jwt 권장
+
+카카오로그인시 이메일 아이디만 주고 비번 안줌.. entity 생성 시 nullable = false 하면 저장 불가.. true로 바꿔줘야 아이디를 user테이블에 저장 가능..
+유저테이블에 로그인한 ip, 위치, 마지막 로그인 날짜 .. 개인 식별 데이터(이메일,전화번호,의료정보...)는 일정기간 후 삭제해야되기 때문에..
+배치 - 매일 로그인 1년 지난 사람 찾을 수 없기 때문에 자동..
+
+목록 - 리스트 안 null .size == 0로 검사
+하나짜리 - null .. null이냐 아니냐로 검사
+
+repository 빈 생성+기능(정확히 ..막쓰면 x)
+service 빈 생성 / component (바꿔써도 됨)
+controller 서블릿으로 만들어짐 (정확히 ..막쓰면 x)
+restcontroller(정확히 ..막쓰면 x)
+configuration(정확히 ..막쓰면 x)
+
+16배수로 랜덤한 문자열
+
+csrf
+회원가입 후 그 url 다른데 복붙하면 가입 안됨
+<spring:form
+클에서 서버에 폼 전송 - url
+받는곳이 아닌 곳에서 데이터 받으면 다 차단
+
+세션-보안때문에 안씀..
+로그인되야만 하는 경로 다 적음.. permitAll / denyAll
+
+토큰 없이 접속하면 403에러 발생하게 함
+
+데이터 암호화 2가지 방법
+-복원이 가능한 암호화 
+(개인식별데이터는 그대로 저장하면 안됨)
+전화번호/이메일 (개인정보 보호 암호화 안할꺼면 회원정보 저장하지 말자.. 차라리 카카오로그인)
+
+-복원은 불가능하지만 비교는 가능한 암호화 (ex 비밀번호) - spring security PasswordEncoder가 해줌(알고리즘 적용x)
+검색해보자 복원가능 : chipher / 복원불가 : BcryptPasswordEncoder
+
+거부될 때 로그인 페이지로 넘어가라
+
+ui 글리치 - 로딩 중.. 사용자가 멍때리는 시간
+로고/로딩중 메시지 보여줌 / 데이터 다가져오면 로딩여부 false
+
+인증서 https 적용(연습용은 가능 자바 bin 디렉토리 keytool 명령어 입력)
+putty : openssl
+https는 포트 443
